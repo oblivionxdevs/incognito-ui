@@ -1724,13 +1724,22 @@ print("Loaded " .. profile)
       }
     }
 
+    // Cached accent color - refreshed every ~60 frames to avoid calling getComputedStyle 60x/sec
+    let _cachedAccent = null;
+    let _accentFrameCount = 0;
+
     function renderMatrix() {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const rowHeight = 15;
-      const colWidth = 15;
-      const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#d4d8dd";
-      const drift = (Date.now() / 110) % rowHeight;
+
+      // Refresh accent color only every 60 frames (~3 seconds at 20fps)
+      _accentFrameCount++;
+      if (_accentFrameCount >= 60 || _cachedAccent === null) {
+        _cachedAccent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#d4d8dd";
+        _accentFrameCount = 0;
+      }
+      const accent = _cachedAccent;
 
       matrixCtx.clearRect(0, 0, width, height);
       matrixCtx.font = "700 13px Cascadia Mono, Consolas, monospace";
@@ -1738,8 +1747,18 @@ print("Loaded " .. profile)
       matrixCtx.textBaseline = "top";
       matrixCtx.fillStyle = accent;
 
+<<<<<<< HEAD
       // Heavy full-screen grid removed for performance
+      // Render in two passes: normal chars first, then glowing heads (avoids toggling shadowBlur per character)
+=======
+      // Heavy full-screen grid removed for performance
+>>>>>>> 97d699cf4489f2daee108bcd4dc8a9fdcd48f487
       matrixCtx.shadowColor = accent;
+      matrixCtx.shadowBlur = 0;
+      matrixCtx.globalAlpha = 1;
+
+      const glowQueue = []; // collect head chars to draw in a second pass
+
       matrixStreams.forEach(stream => {
         stream.y += stream.speed;
         if (stream.y - stream.length * rowHeight > height) {
@@ -1754,15 +1773,30 @@ print("Loaded " .. profile)
           if (y < -rowHeight || y > height + rowHeight) continue;
           const fade = 1 - index / stream.length;
           const charIndex = Math.abs(Math.floor((stream.phase + index * 5 + Date.now() / 180) % matrixChars.length));
-          matrixCtx.globalAlpha = Math.max(.025, fade * stream.alpha);
-          matrixCtx.shadowBlur = index < 4 ? 9 : 0;
-          matrixCtx.fillText(matrixChars[charIndex], stream.x, y);
+          const alpha = Math.max(.025, fade * stream.alpha);
+          if (index < 4) {
+            // defer glowing head chars to second pass
+            glowQueue.push({ char: matrixChars[charIndex], x: stream.x, y, alpha });
+          } else {
+            matrixCtx.globalAlpha = alpha;
+            matrixCtx.fillText(matrixChars[charIndex], stream.x, y);
+          }
         }
       });
 
+      // Second pass: draw glowing head characters in one batched shadowBlur state
+      matrixCtx.shadowBlur = 9;
+      for (let i = 0; i < glowQueue.length; i++) {
+        const g = glowQueue[i];
+        matrixCtx.globalAlpha = g.alpha;
+        matrixCtx.fillText(g.char, g.x, g.y);
+      }
+
       matrixCtx.globalAlpha = 1;
       matrixCtx.shadowBlur = 0;
-      matrixAnimation = requestAnimationFrame(renderMatrix);
+
+      // Throttle to ~20fps using setTimeout instead of requestAnimationFrame (saves ~66% CPU vs 60fps)
+      matrixAnimation = setTimeout(renderMatrix, 50);
     }
 
     function easeOut(t) {
@@ -2491,10 +2525,19 @@ print("Loaded " .. profile)
     syncWorkspaceView();
     updateStats();
     updateClock();
-    setInterval(updateClock, 15000);
+    setInterval(updateClock, 30000);
     resizeMatrix();
     renderMatrix();
     window.addEventListener("resize", resizeMatrix);
+
+    // Pause matrix animation when window is hidden (minimized / background tab) to save CPU
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        clearTimeout(matrixAnimation);
+      } else {
+        renderMatrix();
+      }
+    });
     log(hasBackend() ? "WebView2 bridge ready" : "Browser preview mode", hasBackend() ? "ok" : "warn");
     postBackend("ui_ready", { settings: collectSettings() });
 
