@@ -1738,15 +1738,7 @@ print("Loaded " .. profile)
       matrixCtx.textBaseline = "top";
       matrixCtx.fillStyle = accent;
 
-      for (let x = 4; x < width + colWidth; x += colWidth) {
-        const columnPhase = (x * 17) % rowHeight;
-        for (let y = -rowHeight; y < height + rowHeight; y += rowHeight) {
-          const charIndex = Math.abs(Math.floor((x * 13 + y * 7 + Date.now() / 420) % matrixChars.length));
-          matrixCtx.globalAlpha = .018 + (((x + y) % 5) * .005);
-          matrixCtx.fillText(matrixChars[charIndex], x, y + drift + columnPhase);
-        }
-      }
-
+      // Heavy full-screen grid removed for performance
       matrixCtx.shadowColor = accent;
       matrixStreams.forEach(stream => {
         stream.y += stream.speed;
