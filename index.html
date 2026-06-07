@@ -50,9 +50,9 @@
 
     body {
       background:
-        linear-gradient(120deg, rgba(255, 255, 255, .035) 0 1px, transparent 1px 44px) 0 0 / 44px 44px,
-        radial-gradient(900px 520px at 50% -300px, rgba(142, 161, 184, .18), transparent 66%),
-        radial-gradient(760px 520px at 100% 110%, rgba(184, 75, 85, .08), transparent 58%),
+        linear-gradient(120deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 44px) 0 0 / 44px 44px,
+        radial-gradient(900px 520px at 50% -300px, rgba(142, 161, 184, .10), transparent 66%),
+        radial-gradient(760px 520px at 100% 110%, rgba(212, 216, 221, .045), transparent 58%),
         var(--bg);
     }
 
@@ -63,9 +63,9 @@
       height: 100%;
       z-index: 3;
       pointer-events: none;
-      opacity: .26;
+      opacity: .34;
       mix-blend-mode: screen;
-      filter: drop-shadow(0 0 10px rgba(212, 216, 221, .16));
+      filter: drop-shadow(0 0 9px rgba(212, 216, 221, .12));
       animation: matrixFade .72s ease both, matrixPulse 7s ease-in-out .72s infinite;
     }
 
@@ -412,38 +412,6 @@
       position: relative;
       overflow: hidden;
       background: #0b0d10;
-    }
-
-    .editor-wrap::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      opacity: 0;
-      background:
-        radial-gradient(190px 74px at var(--type-x, 90px) var(--type-y, 48px), rgba(212, 216, 221, .16), transparent 70%),
-        linear-gradient(90deg, transparent, rgba(212, 216, 221, .08), transparent);
-      mix-blend-mode: screen;
-    }
-
-    .editor-wrap.typing::after {
-      animation: typingGlow .52s ease-out both;
-    }
-
-    .editor-wrap.typing #editor {
-      animation: editorTypePulse .32s ease-out both;
-    }
-
-    .typing-burst {
-      position: absolute;
-      z-index: 12;
-      width: 9px;
-      height: 22px;
-      border-radius: 4px;
-      background: rgba(230, 234, 238, .54);
-      box-shadow: 0 0 16px rgba(230, 234, 238, .42), 0 0 34px rgba(142, 161, 184, .22);
-      pointer-events: none;
-      mix-blend-mode: screen;
     }
 
     .intellisense {
@@ -1191,20 +1159,6 @@
       }
     }
 
-    @keyframes typingGlow {
-      0% {
-        opacity: 0;
-        transform: scaleX(.94);
-      }
-      24% {
-        opacity: 1;
-      }
-      100% {
-        opacity: 0;
-        transform: scaleX(1);
-      }
-    }
-
     @keyframes suggestIn {
       from {
         opacity: 0;
@@ -1213,17 +1167,6 @@
       to {
         opacity: 1;
         transform: translateY(0) scale(1);
-      }
-    }
-
-    @keyframes editorTypePulse {
-      0% {
-        caret-color: var(--text);
-        filter: brightness(1.12);
-      }
-      100% {
-        caret-color: var(--accent);
-        filter: brightness(1);
       }
     }
 
@@ -1259,16 +1202,16 @@
         opacity: 0;
       }
       to {
-        opacity: .26;
+        opacity: .34;
       }
     }
 
     @keyframes matrixPulse {
       0%, 100% {
-        opacity: .22;
+        opacity: .25;
       }
       50% {
-        opacity: .31;
+        opacity: .38;
       }
     }
 
@@ -1336,14 +1279,6 @@
         <div class="pill">RPC <strong id="rpc-pill">Off</strong></div>
         <div class="pill">Auto Attach <strong id="auto-pill">Off</strong></div>
         <div class="pill">Line <strong id="line-pill">1</strong> : <strong id="col-pill">1</strong></div>
-      </div>
-      <div style="display: flex; gap: 6px; align-items: center;">
-        <button class="icon-btn" id="minimize-btn" title="Minimize">
-          <svg viewBox="0 0 24 24"><path d="M5 12h14"></path></svg>
-        </button>
-        <button class="icon-btn" id="close-btn" title="Close" style="color: var(--danger);">
-          <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"></path></svg>
-        </button>
       </div>
     </header>
 
@@ -1525,10 +1460,8 @@ print("Loaded " .. profile)
     const settingsView = el("settings-view");
     const matrixCanvas = el("matrix-canvas");
     const matrixCtx = matrixCanvas.getContext("2d");
-    const matrixChars = "01{}[]<>/\\|$#@*+=-".split("");
-    let matrixStreams = [];
+    let matrixNodes = [];
     let matrixAnimation = 0;
-    let typingTimer = 0;
     let suggestItems = [];
     let suggestIndex = 0;
     let suggestToken = "";
@@ -1545,54 +1478,331 @@ print("Loaded " .. profile)
       ["then", "kw", "then", "conditional"],
       ["else", "kw", "else", "conditional"],
       ["elseif", "kw", "elseif  then", "conditional"],
-      ["for", "kw", "for i = 1,  do\n\t\nend", "loop"],
+      ["for", "kw", "for i = 1,  do\n\t\nend", "numeric loop"],
+      ["for in", "kw", "for _, value in ipairs() do\n\t\nend", "iterator loop"],
       ["while", "kw", "while  do\n\t\nend", "loop"],
       ["repeat", "kw", "repeat\n\t\nuntil ", "loop"],
       ["return", "kw", "return ", "keyword"],
+      ["break", "kw", "break", "keyword"],
+      ["continue", "kw", "continue", "keyword"],
+      ["and", "kw", "and", "operator"],
+      ["or", "kw", "or", "operator"],
+      ["not", "kw", "not ", "operator"],
       ["true", "lit", "true", "boolean"],
       ["false", "lit", "false", "boolean"],
       ["nil", "lit", "nil", "literal"],
       ["print", "fn", "print()", "output"],
       ["warn", "fn", "warn()", "output"],
-      ["pairs", "fn", "pairs()", "iterator"],
-      ["ipairs", "fn", "ipairs()", "iterator"],
-      ["pcall", "fn", "pcall()", "protected call"],
-      ["typeof", "fn", "typeof()", "type check"],
+      ["error", "fn", "error()", "throw"],
+      ["assert", "fn", "assert()", "validate"],
+      ["type", "fn", "type()", "type check"],
+      ["typeof", "fn", "typeof()", "Luau type check"],
       ["tonumber", "fn", "tonumber()", "convert"],
       ["tostring", "fn", "tostring()", "convert"],
+      ["pairs", "fn", "pairs()", "iterator"],
+      ["ipairs", "fn", "ipairs()", "iterator"],
+      ["next", "fn", "next()", "iterator"],
+      ["pcall", "fn", "pcall(function()\n\t\nend)", "protected call"],
+      ["xpcall", "fn", "xpcall(function()\n\t\nend, warn)", "protected call"],
+      ["select", "fn", "select()", "varargs"],
+      ["unpack", "fn", "unpack()", "table values"],
+      ["require", "fn", "require()", "module"],
+      ["getmetatable", "fn", "getmetatable()", "metatable"],
+      ["setmetatable", "fn", "setmetatable()", "metatable"],
+      ["rawget", "fn", "rawget()", "raw access"],
+      ["rawset", "fn", "rawset()", "raw access"],
+      ["rawequal", "fn", "rawequal()", "raw compare"],
       ["table.insert", "api", "table.insert()", "table"],
       ["table.remove", "api", "table.remove()", "table"],
-      ["table.find", "api", "table.find()", "table"],
+      ["table.find", "api", "table.find()", "Luau table"],
+      ["table.clear", "api", "table.clear()", "Luau table"],
+      ["table.clone", "api", "table.clone()", "Luau table"],
+      ["table.freeze", "api", "table.freeze()", "Luau table"],
+      ["table.isfrozen", "api", "table.isfrozen()", "Luau table"],
+      ["table.concat", "api", "table.concat()", "table"],
+      ["table.sort", "api", "table.sort()", "table"],
+      ["table.pack", "api", "table.pack()", "table"],
+      ["table.unpack", "api", "table.unpack()", "table"],
+      ["table.move", "api", "table.move()", "table"],
+      ["table.create", "api", "table.create()", "Luau table"],
+      ["string.byte", "api", "string.byte()", "string"],
+      ["string.char", "api", "string.char()", "string"],
+      ["string.find", "api", "string.find()", "string"],
       ["string.format", "api", "string.format()", "string"],
+      ["string.gmatch", "api", "string.gmatch()", "string"],
+      ["string.gsub", "api", "string.gsub()", "string"],
+      ["string.len", "api", "string.len()", "string"],
       ["string.lower", "api", "string.lower()", "string"],
+      ["string.match", "api", "string.match()", "string"],
+      ["string.rep", "api", "string.rep()", "string"],
+      ["string.reverse", "api", "string.reverse()", "string"],
+      ["string.split", "api", "string.split()", "Luau string"],
+      ["string.sub", "api", "string.sub()", "string"],
       ["string.upper", "api", "string.upper()", "string"],
+      ["math.abs", "api", "math.abs()", "math"],
+      ["math.acos", "api", "math.acos()", "math"],
+      ["math.asin", "api", "math.asin()", "math"],
+      ["math.atan", "api", "math.atan()", "math"],
+      ["math.ceil", "api", "math.ceil()", "math"],
+      ["math.clamp", "api", "math.clamp(, , )", "Luau math"],
+      ["math.cos", "api", "math.cos()", "math"],
+      ["math.deg", "api", "math.deg()", "math"],
+      ["math.exp", "api", "math.exp()", "math"],
       ["math.floor", "api", "math.floor()", "math"],
+      ["math.fmod", "api", "math.fmod()", "math"],
+      ["math.huge", "api", "math.huge", "math"],
+      ["math.log", "api", "math.log()", "math"],
+      ["math.max", "api", "math.max()", "math"],
+      ["math.min", "api", "math.min()", "math"],
+      ["math.noise", "api", "math.noise()", "Luau math"],
+      ["math.pi", "api", "math.pi", "math"],
+      ["math.rad", "api", "math.rad()", "math"],
       ["math.random", "api", "math.random()", "math"],
+      ["math.randomseed", "api", "math.randomseed()", "math"],
+      ["math.round", "api", "math.round()", "Luau math"],
+      ["math.sign", "api", "math.sign()", "Luau math"],
+      ["math.sin", "api", "math.sin()", "math"],
+      ["math.sqrt", "api", "math.sqrt()", "math"],
+      ["math.tan", "api", "math.tan()", "math"],
       ["task.wait", "api", "task.wait()", "scheduler"],
       ["task.spawn", "api", "task.spawn(function()\n\t\nend)", "scheduler"],
+      ["task.defer", "api", "task.defer(function()\n\t\nend)", "scheduler"],
       ["task.delay", "api", "task.delay(, function()\n\t\nend)", "scheduler"],
+      ["task.cancel", "api", "task.cancel()", "scheduler"],
+      ["task.synchronize", "api", "task.synchronize()", "parallel Luau"],
+      ["task.desynchronize", "api", "task.desynchronize()", "parallel Luau"],
+      ["coroutine.create", "api", "coroutine.create(function()\n\t\nend)", "coroutine"],
+      ["coroutine.resume", "api", "coroutine.resume()", "coroutine"],
+      ["coroutine.wrap", "api", "coroutine.wrap(function()\n\t\nend)", "coroutine"],
+      ["coroutine.yield", "api", "coroutine.yield()", "coroutine"],
+      ["coroutine.status", "api", "coroutine.status()", "coroutine"],
       ["game", "rbx", "game", "DataModel"],
       ["workspace", "rbx", "workspace", "Workspace"],
       ["script", "rbx", "script", "current script"],
-      ["game:GetService", "rbx", "game:GetService(\"\")", "service"],
-      ["Players", "rbx", "game:GetService(\"Players\")", "service"],
-      ["RunService", "rbx", "game:GetService(\"RunService\")", "service"],
-      ["UserInputService", "rbx", "game:GetService(\"UserInputService\")", "service"],
-      ["TweenService", "rbx", "game:GetService(\"TweenService\")", "service"],
-      ["ReplicatedStorage", "rbx", "game:GetService(\"ReplicatedStorage\")", "service"],
-      ["Lighting", "rbx", "game:GetService(\"Lighting\")", "service"],
+      ["game:GetService", "rbx", "game:GetService(\"\")", "service lookup", "getservice service"],
+      ["Workspace", "svc", "game:GetService(\"Workspace\")", "service"],
+      ["Players", "svc", "game:GetService(\"Players\")", "service"],
+      ["RunService", "svc", "game:GetService(\"RunService\")", "service"],
+      ["UserInputService", "svc", "game:GetService(\"UserInputService\")", "service"],
+      ["ContextActionService", "svc", "game:GetService(\"ContextActionService\")", "service"],
+      ["TweenService", "svc", "game:GetService(\"TweenService\")", "service"],
+      ["ReplicatedStorage", "svc", "game:GetService(\"ReplicatedStorage\")", "service"],
+      ["ServerStorage", "svc", "game:GetService(\"ServerStorage\")", "service"],
+      ["ServerScriptService", "svc", "game:GetService(\"ServerScriptService\")", "service"],
+      ["StarterGui", "svc", "game:GetService(\"StarterGui\")", "service"],
+      ["StarterPack", "svc", "game:GetService(\"StarterPack\")", "service"],
+      ["StarterPlayer", "svc", "game:GetService(\"StarterPlayer\")", "service"],
+      ["Lighting", "svc", "game:GetService(\"Lighting\")", "service"],
+      ["SoundService", "svc", "game:GetService(\"SoundService\")", "service"],
+      ["Teams", "svc", "game:GetService(\"Teams\")", "service"],
+      ["HttpService", "svc", "game:GetService(\"HttpService\")", "service"],
+      ["MarketplaceService", "svc", "game:GetService(\"MarketplaceService\")", "service"],
+      ["TeleportService", "svc", "game:GetService(\"TeleportService\")", "service"],
+      ["TextChatService", "svc", "game:GetService(\"TextChatService\")", "service"],
+      ["Chat", "svc", "game:GetService(\"Chat\")", "service"],
+      ["Debris", "svc", "game:GetService(\"Debris\")", "service"],
+      ["CollectionService", "svc", "game:GetService(\"CollectionService\")", "service"],
+      ["PathfindingService", "svc", "game:GetService(\"PathfindingService\")", "service"],
+      ["PhysicsService", "svc", "game:GetService(\"PhysicsService\")", "service"],
+      ["DataStoreService", "svc", "game:GetService(\"DataStoreService\")", "service"],
+      ["MessagingService", "svc", "game:GetService(\"MessagingService\")", "service"],
+      ["MemoryStoreService", "svc", "game:GetService(\"MemoryStoreService\")", "service"],
+      ["BadgeService", "svc", "game:GetService(\"BadgeService\")", "service"],
+      ["GuiService", "svc", "game:GetService(\"GuiService\")", "service"],
+      ["ProximityPromptService", "svc", "game:GetService(\"ProximityPromptService\")", "service"],
+      ["SocialService", "svc", "game:GetService(\"SocialService\")", "service"],
+      ["PolicyService", "svc", "game:GetService(\"PolicyService\")", "service"],
+      ["InsertService", "svc", "game:GetService(\"InsertService\")", "service"],
+      ["MaterialService", "svc", "game:GetService(\"MaterialService\")", "service"],
+      ["AvatarEditorService", "svc", "game:GetService(\"AvatarEditorService\")", "service"],
+      ["CoreGui", "svc", "game:GetService(\"CoreGui\")", "service"],
+      ["Stats", "svc", "game:GetService(\"Stats\")", "service"],
       ["Instance.new", "rbx", "Instance.new(\"\")", "constructor"],
+      ["RaycastParams.new", "rbx", "RaycastParams.new()", "constructor"],
+      ["OverlapParams.new", "rbx", "OverlapParams.new()", "constructor"],
+      ["TweenInfo.new", "rbx", "TweenInfo.new()", "constructor"],
+      ["Random.new", "rbx", "Random.new()", "constructor"],
+      ["Region3.new", "rbx", "Region3.new()", "constructor"],
+      ["Vector2.new", "rbx", "Vector2.new(0, 0)", "datatype"],
       ["Vector3.new", "rbx", "Vector3.new(0, 0, 0)", "datatype"],
       ["CFrame.new", "rbx", "CFrame.new()", "datatype"],
+      ["CFrame.lookAt", "rbx", "CFrame.lookAt(Vector3.new(), Vector3.new())", "datatype"],
+      ["Color3.new", "rbx", "Color3.new(1, 1, 1)", "datatype"],
       ["Color3.fromRGB", "rbx", "Color3.fromRGB(255, 255, 255)", "datatype"],
+      ["BrickColor.new", "rbx", "BrickColor.new(\"\")", "datatype"],
+      ["UDim.new", "rbx", "UDim.new(0, 0)", "datatype"],
       ["UDim2.new", "rbx", "UDim2.new(0, 0, 0, 0)", "datatype"],
-      ["Enum", "rbx", "Enum.", "enum"],
+      ["Rect.new", "rbx", "Rect.new(0, 0, 0, 0)", "datatype"],
+      ["NumberRange.new", "rbx", "NumberRange.new(0, 1)", "datatype"],
+      ["NumberSequence.new", "rbx", "NumberSequence.new()", "datatype"],
+      ["ColorSequence.new", "rbx", "ColorSequence.new()", "datatype"],
+      ["PhysicalProperties.new", "rbx", "PhysicalProperties.new()", "datatype"],
+      ["Enum", "enum", "Enum.", "enum"],
+      ["Enum.KeyCode", "enum", "Enum.KeyCode.", "enum"],
+      ["Enum.UserInputType", "enum", "Enum.UserInputType.", "enum"],
+      ["Enum.Material", "enum", "Enum.Material.", "enum"],
+      ["Enum.Font", "enum", "Enum.Font.", "enum"],
+      ["Enum.EasingStyle", "enum", "Enum.EasingStyle.", "enum"],
+      ["Enum.EasingDirection", "enum", "Enum.EasingDirection.", "enum"],
+      ["Enum.HumanoidStateType", "enum", "Enum.HumanoidStateType.", "enum"],
+      ["Enum.CameraType", "enum", "Enum.CameraType.", "enum"],
+      ["Enum.PartType", "enum", "Enum.PartType.", "enum"],
       ["WaitForChild", "rbx", "WaitForChild(\"\")", "method"],
       ["FindFirstChild", "rbx", "FindFirstChild(\"\")", "method"],
+      ["FindFirstChildOfClass", "rbx", "FindFirstChildOfClass(\"\")", "method"],
+      ["FindFirstAncestor", "rbx", "FindFirstAncestor(\"\")", "method"],
+      ["IsA", "rbx", "IsA(\"\")", "method"],
       ["GetChildren", "rbx", "GetChildren()", "method"],
+      ["GetDescendants", "rbx", "GetDescendants()", "method"],
+      ["GetAttribute", "rbx", "GetAttribute(\"\")", "attribute"],
+      ["SetAttribute", "rbx", "SetAttribute(\"\", nil)", "attribute"],
+      ["GetPropertyChangedSignal", "rbx", "GetPropertyChangedSignal(\"\")", "event"],
+      ["Clone", "rbx", "Clone()", "method"],
+      ["Destroy", "rbx", "Destroy()", "method"],
+      ["PivotTo", "rbx", "PivotTo(CFrame.new())", "method"],
+      ["GetPivot", "rbx", "GetPivot()", "method"],
+      ["Raycast", "rbx", "Raycast(Vector3.new(), Vector3.new())", "method"],
+      ["GetMouse", "rbx", "GetMouse()", "player"],
+      ["LoadCharacter", "rbx", "LoadCharacter()", "player"],
+      ["Kick", "rbx", "Kick(\"\")", "player"],
       ["Connect", "rbx", "Connect(function()\n\t\nend)", "event"],
-      ["Destroy", "rbx", "Destroy()", "method"]
-    ].map(([label, kind, insert, detail]) => ({ label, kind, insert, detail }));
+      ["Once", "rbx", "Once(function()\n\t\nend)", "event"],
+      ["Wait", "rbx", "Wait()", "event"],
+      ["Disconnect", "rbx", "Disconnect()", "connection"],
+      ["FireServer", "rbx", "FireServer()", "remote"],
+      ["InvokeServer", "rbx", "InvokeServer()", "remote"],
+      ["FireClient", "rbx", "FireClient()", "remote"],
+      ["InvokeClient", "rbx", "InvokeClient()", "remote"],
+      ["FireAllClients", "rbx", "FireAllClients()", "remote"],
+      ["PlayerAdded", "evt", "PlayerAdded:Connect(function(player)\n\t\nend)", "event"],
+      ["PlayerRemoving", "evt", "PlayerRemoving:Connect(function(player)\n\t\nend)", "event"],
+      ["CharacterAdded", "evt", "CharacterAdded:Connect(function(character)\n\t\nend)", "event"],
+      ["RenderStepped", "evt", "RenderStepped:Connect(function(deltaTime)\n\t\nend)", "event"],
+      ["Heartbeat", "evt", "Heartbeat:Connect(function(deltaTime)\n\t\nend)", "event"],
+      ["Stepped", "evt", "Stepped:Connect(function(time, deltaTime)\n\t\nend)", "event"],
+      ["Touched", "evt", "Touched:Connect(function(hit)\n\t\nend)", "event"],
+      ["Changed", "evt", "Changed:Connect(function(property)\n\t\nend)", "event"],
+      ["MouseButton1Click", "evt", "MouseButton1Click:Connect(function()\n\t\nend)", "event"],
+      ["InputBegan", "evt", "InputBegan:Connect(function(input, gameProcessed)\n\t\nend)", "event"],
+      ["InputEnded", "evt", "InputEnded:Connect(function(input, gameProcessed)\n\t\nend)", "event"],
+      ["ScreenGui", "class", "Instance.new(\"ScreenGui\")", "class"],
+      ["Frame", "class", "Instance.new(\"Frame\")", "class"],
+      ["TextLabel", "class", "Instance.new(\"TextLabel\")", "class"],
+      ["TextButton", "class", "Instance.new(\"TextButton\")", "class"],
+      ["ImageLabel", "class", "Instance.new(\"ImageLabel\")", "class"],
+      ["ImageButton", "class", "Instance.new(\"ImageButton\")", "class"],
+      ["ScrollingFrame", "class", "Instance.new(\"ScrollingFrame\")", "class"],
+      ["UICorner", "class", "Instance.new(\"UICorner\")", "class"],
+      ["UIStroke", "class", "Instance.new(\"UIStroke\")", "class"],
+      ["UIListLayout", "class", "Instance.new(\"UIListLayout\")", "class"],
+      ["UIGridLayout", "class", "Instance.new(\"UIGridLayout\")", "class"],
+      ["UIPadding", "class", "Instance.new(\"UIPadding\")", "class"],
+      ["UIGradient", "class", "Instance.new(\"UIGradient\")", "class"],
+      ["Part", "class", "Instance.new(\"Part\")", "class"],
+      ["Model", "class", "Instance.new(\"Model\")", "class"],
+      ["Folder", "class", "Instance.new(\"Folder\")", "class"],
+      ["ModuleScript", "class", "Instance.new(\"ModuleScript\")", "class"],
+      ["RemoteEvent", "class", "Instance.new(\"RemoteEvent\")", "class"],
+      ["RemoteFunction", "class", "Instance.new(\"RemoteFunction\")", "class"],
+      ["BindableEvent", "class", "Instance.new(\"BindableEvent\")", "class"],
+      ["BindableFunction", "class", "Instance.new(\"BindableFunction\")", "class"],
+      ["Humanoid", "class", "Instance.new(\"Humanoid\")", "class"],
+      ["HumanoidRootPart", "prop", "HumanoidRootPart", "property"],
+      ["Parent", "prop", "Parent", "property"],
+      ["Name", "prop", "Name", "property"],
+      ["ClassName", "prop", "ClassName", "property"],
+      ["Position", "prop", "Position", "property"],
+      ["CFrame", "prop", "CFrame", "property"],
+      ["Size", "prop", "Size", "property"],
+      ["Anchored", "prop", "Anchored", "property"],
+      ["CanCollide", "prop", "CanCollide", "property"],
+      ["Transparency", "prop", "Transparency", "property"],
+      ["Visible", "prop", "Visible", "property"],
+      ["Enabled", "prop", "Enabled", "property"],
+      ["Text", "prop", "Text", "property"],
+      ["TextColor3", "prop", "TextColor3", "property"],
+      ["BackgroundColor3", "prop", "BackgroundColor3", "property"],
+      ["LocalPlayer", "prop", "LocalPlayer", "property"],
+      ["Character", "prop", "Character", "property"],
+      ["CurrentCamera", "prop", "CurrentCamera", "property"]
+    ].map(([label, kind, insert, detail, aliases = ""]) => ({
+      label,
+      kind,
+      insert,
+      detail,
+      aliases: String(aliases).split(" ").filter(Boolean)
+    }));
+
+    const AUTOCORRECT = new Map([
+      ["pritn", "print"],
+      ["prnit", "print"],
+      ["pirnt", "print"],
+      ["wran", "warn"],
+      ["waarn", "warn"],
+      ["funtion", "function"],
+      ["funciton", "function"],
+      ["fucntion", "function"],
+      ["functoin", "function"],
+      ["loacl", "local"],
+      ["locla", "local"],
+      ["retrun", "return"],
+      ["retun", "return"],
+      ["retrurn", "return"],
+      ["esle", "else"],
+      ["elseifh", "elseif"],
+      ["untill", "until"],
+      ["flase", "false"],
+      ["treu", "true"],
+      ["nill", "nil"],
+      ["lenght", "length"],
+      ["getservice", "GetService"],
+      ["game:getservice", "game:GetService"],
+      ["game.getservice", "game:GetService"],
+      ["waitforchild", "WaitForChild"],
+      ["findfirstchild", "FindFirstChild"],
+      ["findfirstchildofclass", "FindFirstChildOfClass"],
+      ["getchildren", "GetChildren"],
+      ["getdescendants", "GetDescendants"],
+      ["getattribute", "GetAttribute"],
+      ["setattribute", "SetAttribute"],
+      ["isa", "IsA"],
+      ["destroy", "Destroy"],
+      ["clone", "Clone"],
+      ["connect", "Connect"],
+      ["disconnect", "Disconnect"],
+      ["fireserver", "FireServer"],
+      ["invokeserver", "InvokeServer"],
+      ["fireclient", "FireClient"],
+      ["invokeclient", "InvokeClient"],
+      ["fireallclients", "FireAllClients"],
+      ["players", "Players"],
+      ["runservice", "RunService"],
+      ["userinputservice", "UserInputService"],
+      ["tweenservice", "TweenService"],
+      ["replicatedstorage", "ReplicatedStorage"],
+      ["serverstorage", "ServerStorage"],
+      ["serverscriptservice", "ServerScriptService"],
+      ["startergui", "StarterGui"],
+      ["starterplayer", "StarterPlayer"],
+      ["httpservice", "HttpService"],
+      ["debris", "Debris"],
+      ["collectionservice", "CollectionService"],
+      ["pathfindingservice", "PathfindingService"],
+      ["marketplaceservice", "MarketplaceService"],
+      ["teleportservice", "TeleportService"],
+      ["textchatservice", "TextChatService"],
+      ["instance.new", "Instance.new"],
+      ["vector2.new", "Vector2.new"],
+      ["vector3.new", "Vector3.new"],
+      ["cframe.new", "CFrame.new"],
+      ["color3.new", "Color3.new"],
+      ["color3.fromrgb", "Color3.fromRGB"],
+      ["udim.new", "UDim.new"],
+      ["udim2.new", "UDim2.new"],
+      ["tweeninfo.new", "TweenInfo.new"],
+      ["raycastparams.new", "RaycastParams.new"],
+      ["overlapparams.new", "OverlapParams.new"]
+    ]);
 
     function hasBackend() {
       return !!(window.chrome && window.chrome.webview && window.chrome.webview.postMessage);
@@ -1710,89 +1920,81 @@ print("Loaded " .. profile)
     }
 
     function initMatrix() {
-      matrixStreams = [];
-      const columns = Math.floor(window.innerWidth / 15) + 2;
-      for (let index = 0; index < columns; index += 1) {
-        matrixStreams.push({
-          x: index * 15 + (Math.random() * 5 - 2.5),
-          y: Math.random() * window.innerHeight,
-          speed: .65 + Math.random() * 1.8,
-          length: 14 + Math.floor(Math.random() * 36),
-          alpha: .18 + Math.random() * .42,
-          phase: Math.random() * 1000
+      matrixNodes = [];
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const count = Math.max(34, Math.min(76, Math.round((width * height) / 19000)));
+      for (let index = 0; index < count; index += 1) {
+        const speed = .08 + Math.random() * .22;
+        const angle = Math.random() * Math.PI * 2;
+        matrixNodes.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          r: 1.8 + Math.random() * 2.6,
+          alpha: .26 + Math.random() * .42,
+          pulse: Math.random() * Math.PI * 2
         });
       }
     }
 
-    // Cached accent color - refreshed every ~60 frames to avoid calling getComputedStyle 60x/sec
-    let _cachedAccent = null;
-    let _accentFrameCount = 0;
-
     function renderMatrix() {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      const rowHeight = 15;
-
-      // Refresh accent color only every 60 frames (~3 seconds at 20fps)
-      _accentFrameCount++;
-      if (_accentFrameCount >= 60 || _cachedAccent === null) {
-        _cachedAccent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#d4d8dd";
-        _accentFrameCount = 0;
-      }
-      const accent = _cachedAccent;
+      const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#d4d8dd";
+      const quiet = getComputedStyle(document.documentElement).getPropertyValue("--quiet").trim() || "#737b85";
+      const now = Date.now() / 1000;
 
       matrixCtx.clearRect(0, 0, width, height);
-      matrixCtx.font = "700 13px Cascadia Mono, Consolas, monospace";
-      matrixCtx.textAlign = "center";
-      matrixCtx.textBaseline = "top";
-      matrixCtx.fillStyle = accent;
-
-      // Heavy full-screen grid removed for performance
-      // Render in two passes: normal chars first, then glowing heads (avoids toggling shadowBlur per character)
-      matrixCtx.shadowColor = accent;
-      matrixCtx.shadowBlur = 0;
-      matrixCtx.globalAlpha = 1;
-
-      const glowQueue = []; // collect head chars to draw in a second pass
-
-      matrixStreams.forEach(stream => {
-        stream.y += stream.speed;
-        if (stream.y - stream.length * rowHeight > height) {
-          stream.y = Math.random() * -height * .45;
-          stream.speed = .65 + Math.random() * 1.8;
-          stream.length = 14 + Math.floor(Math.random() * 36);
-          stream.alpha = .18 + Math.random() * .42;
-        }
-
-        for (let index = 0; index < stream.length; index += 1) {
-          const y = stream.y - index * rowHeight;
-          if (y < -rowHeight || y > height + rowHeight) continue;
-          const fade = 1 - index / stream.length;
-          const charIndex = Math.abs(Math.floor((stream.phase + index * 5 + Date.now() / 180) % matrixChars.length));
-          const alpha = Math.max(.025, fade * stream.alpha);
-          if (index < 4) {
-            // defer glowing head chars to second pass
-            glowQueue.push({ char: matrixChars[charIndex], x: stream.x, y, alpha });
-          } else {
-            matrixCtx.globalAlpha = alpha;
-            matrixCtx.fillText(matrixChars[charIndex], stream.x, y);
-          }
-        }
+      matrixNodes.forEach(node => {
+        node.x += node.vx;
+        node.y += node.vy;
+        node.pulse += .018;
+        if (node.x < -20) node.x = width + 20;
+        if (node.x > width + 20) node.x = -20;
+        if (node.y < -20) node.y = height + 20;
+        if (node.y > height + 20) node.y = -20;
       });
 
-      // Second pass: draw glowing head characters in one batched shadowBlur state
-      matrixCtx.shadowBlur = 9;
-      for (let i = 0; i < glowQueue.length; i++) {
-        const g = glowQueue[i];
-        matrixCtx.globalAlpha = g.alpha;
-        matrixCtx.fillText(g.char, g.x, g.y);
+      matrixCtx.lineWidth = 1;
+      for (let a = 0; a < matrixNodes.length; a += 1) {
+        for (let b = a + 1; b < matrixNodes.length; b += 1) {
+          const left = matrixNodes[a];
+          const right = matrixNodes[b];
+          const dx = left.x - right.x;
+          const dy = left.y - right.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const limit = 172;
+          if (distance > limit) continue;
+          matrixCtx.globalAlpha = Math.pow(1 - distance / limit, 1.7) * .28;
+          matrixCtx.strokeStyle = quiet;
+          matrixCtx.beginPath();
+          matrixCtx.moveTo(left.x, left.y);
+          matrixCtx.lineTo(right.x, right.y);
+          matrixCtx.stroke();
+        }
       }
+
+      matrixCtx.fillStyle = accent;
+      matrixCtx.shadowColor = accent;
+      matrixNodes.forEach(node => {
+        const shimmer = .7 + Math.sin(now * 1.6 + node.pulse) * .3;
+        matrixCtx.globalAlpha = node.alpha * shimmer;
+        matrixCtx.shadowBlur = 12 * shimmer;
+        matrixCtx.beginPath();
+        matrixCtx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
+        matrixCtx.fill();
+        matrixCtx.globalAlpha = .08 * shimmer;
+        matrixCtx.shadowBlur = 0;
+        matrixCtx.beginPath();
+        matrixCtx.arc(node.x, node.y, node.r * 3.6, 0, Math.PI * 2);
+        matrixCtx.fill();
+      });
 
       matrixCtx.globalAlpha = 1;
       matrixCtx.shadowBlur = 0;
-
-      // Throttle to ~20fps using setTimeout instead of requestAnimationFrame (saves ~66% CPU vs 60fps)
-      matrixAnimation = setTimeout(renderMatrix, 50);
+      matrixAnimation = requestAnimationFrame(renderMatrix);
     }
 
     function easeOut(t) {
@@ -1897,19 +2099,6 @@ print("Loaded " .. profile)
         };
         wait();
       });
-    }
-
-    function playTypingBurst(x, y) {
-      const burst = document.createElement("span");
-      burst.className = "typing-burst";
-      burst.style.left = `${x}px`;
-      burst.style.top = `${y - 3}px`;
-      editorWrap.appendChild(burst);
-      frameMotion(720, (ease, raw) => {
-        const scale = raw < .24 ? lerp(.35, 1.35, raw / .24) : lerp(1.35, .65, (raw - .24) / .76);
-        burst.style.opacity = String(raw < .28 ? lerp(0, 1, raw / .28) : lerp(1, 0, (raw - .28) / .72));
-        burst.style.transform = `translateY(${lerp(8, -10, ease)}px) scale(${scale})`;
-      }, () => burst.remove());
     }
 
     function activeTab() {
@@ -2049,27 +2238,84 @@ print("Loaded " .. profile)
       el("col-pill").textContent = col;
     }
 
-    function playTypingAnimation() {
-      const before = editor.value.slice(0, editor.selectionStart).split("\n");
-      const line = before.length;
-      const col = before[before.length - 1].length;
-      const x = Math.min(editorWrap.clientWidth - 18, Math.max(58, 68 + col * 7.5));
-      const y = Math.min(editorWrap.clientHeight - 18, Math.max(20, 14 + (line - 1) * 22 - editor.scrollTop));
-      editorWrap.style.setProperty("--type-x", `${x}px`);
-      editorWrap.style.setProperty("--type-y", `${y}px`);
-      editorWrap.classList.remove("typing");
-      void editorWrap.offsetWidth;
-      editorWrap.classList.add("typing");
-      editorWrap.animate([
-        { filter: "brightness(1.12)" },
-        { filter: "brightness(1)" }
-      ], { duration: 220, easing: "ease-out" });
-      playTypingBurst(x, y);
-      typingTimer += 1;
-      const token = typingTimer;
-      frameMotion(760, () => {}, () => {
-        if (token === typingTimer) editorWrap.classList.remove("typing");
+    function handleEditorInput() {
+      applyAutocorrect();
+      updateStats();
+      showIntellisense();
+    }
+
+    function applyAutocorrect() {
+      if (isSettingsTab(activeTab())) return false;
+      const pos = editor.selectionStart;
+      if (pos !== editor.selectionEnd || pos < 2) return false;
+      const last = editor.value[pos - 1] || "";
+      if (/[A-Za-z0-9_:.]/.test(last)) return false;
+      const prefix = editor.value.slice(0, pos);
+      const match = prefix.match(/([A-Za-z_][A-Za-z0-9_:.]*)([^A-Za-z0-9_:.]*)$/);
+      if (!match) return false;
+      const token = match[1];
+      const suffix = match[2];
+      const replacement = AUTOCORRECT.get(token.toLowerCase());
+      if (!replacement || replacement === token) return false;
+      const start = pos - token.length - suffix.length;
+      const end = start + token.length;
+      editor.value = `${editor.value.slice(0, start)}${replacement}${editor.value.slice(end)}`;
+      const caret = start + replacement.length + suffix.length;
+      editor.setSelectionRange(caret, caret);
+      saveEditor();
+      return true;
+    }
+
+    function handleQuoteKey(event) {
+      if (isSettingsTab(activeTab())) return false;
+      if (event.key !== "\"" || event.ctrlKey || event.metaKey || event.altKey) return false;
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const value = editor.value;
+      if (start === end && value[end] === "\"") {
+        event.preventDefault();
+        editor.setSelectionRange(end + 1, end + 1);
+        updateStats();
+        hideIntellisense();
+        return true;
+      }
+      event.preventDefault();
+      const selected = value.slice(start, end);
+      editor.value = `${value.slice(0, start)}"${selected}"${value.slice(end)}`;
+      const caret = selected ? start + selected.length + 2 : start + 1;
+      editor.setSelectionRange(caret, caret);
+      saveEditor();
+      updateStats();
+      hideIntellisense();
+      return true;
+    }
+
+    function fuzzyScore(term, query) {
+      let qi = 0;
+      let score = 0;
+      for (let index = 0; index < term.length && qi < query.length; index += 1) {
+        if (term[index] !== query[qi]) continue;
+        score += index;
+        qi += 1;
+      }
+      return qi === query.length ? score + term.length : -1;
+    }
+
+    function suggestionRank(item, query, force) {
+      if (force) return 0;
+      const terms = [item.label, item.insert, ...item.aliases].map(value => value.toLowerCase());
+      let best = Infinity;
+      terms.forEach(term => {
+        if (!term) return;
+        if (term === query) best = Math.min(best, 0);
+        else if (term.startsWith(query)) best = Math.min(best, 1 + term.length * .01);
+        else if (term.includes(query)) best = Math.min(best, 5 + term.indexOf(query));
+        else {
+          const fuzzy = fuzzyScore(term, query);
+          if (fuzzy >= 0) best = Math.min(best, 18 + fuzzy * .08);
+        }
       });
+      return best === Infinity ? -1 : best;
     }
 
     function currentToken() {
@@ -2106,11 +2352,11 @@ print("Loaded " .. profile)
       suggestToken = tokenInfo.token;
       suggestStart = tokenInfo.start;
       suggestItems = SUGGESTIONS
-        .filter(item => {
-          const label = item.label.toLowerCase();
-          return force || label.startsWith(query) || label.includes(query);
-        })
-        .slice(0, 9);
+        .map(item => ({ item, rank: suggestionRank(item, query, force) }))
+        .filter(match => match.rank >= 0)
+        .sort((a, b) => a.rank - b.rank || a.item.label.length - b.item.label.length)
+        .map(match => match.item)
+        .slice(0, 12);
       if (!suggestItems.length) {
         hideIntellisense();
         return;
@@ -2151,7 +2397,6 @@ print("Loaded " .. profile)
       editor.setSelectionRange(caret, caret);
       hideIntellisense();
       updateStats();
-      playTypingAnimation();
       editor.focus();
       return true;
     }
@@ -2431,11 +2676,7 @@ print("Loaded " .. profile)
       if (actionButton) handleAction(actionButton.dataset.action);
     });
 
-    editor.addEventListener("input", () => {
-      updateStats();
-      playTypingAnimation();
-      showIntellisense();
-    });
+    editor.addEventListener("input", handleEditorInput);
     editor.addEventListener("keyup", event => {
       updateStats();
       if (!["ArrowUp", "ArrowDown", "Enter", "Tab", "Escape"].includes(event.key)) showIntellisense();
@@ -2450,6 +2691,7 @@ print("Loaded " .. profile)
     });
 
     editor.addEventListener("keydown", event => {
+      if (handleQuoteKey(event)) return;
       if ((event.ctrlKey || event.metaKey) && event.code === "Space") {
         event.preventDefault();
         showIntellisense(true);
@@ -2521,51 +2763,12 @@ print("Loaded " .. profile)
     syncWorkspaceView();
     updateStats();
     updateClock();
-    setInterval(updateClock, 30000);
+    setInterval(updateClock, 15000);
     resizeMatrix();
     renderMatrix();
     window.addEventListener("resize", resizeMatrix);
-
-    // Pause matrix animation when window is hidden (minimized / background tab) to save CPU
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        clearTimeout(matrixAnimation);
-      } else {
-        renderMatrix();
-      }
-    });
     log(hasBackend() ? "WebView2 bridge ready" : "Browser preview mode", hasBackend() ? "ok" : "warn");
     postBackend("ui_ready", { settings: collectSettings() });
-
-    const topbar = document.querySelector('.topbar');
-    if (topbar) {
-        topbar.addEventListener('mousedown', (e) => {
-            if (e.target.closest('button')) return;
-            if (e.buttons === 1) { 
-                if (window.chrome && window.chrome.webview) {
-                    window.chrome.webview.postMessage({ action: 'drag' });
-                }
-            }
-        });
-    }
-
-    const minimizeBtn = document.querySelector('#minimize-btn');
-    if (minimizeBtn) {
-        minimizeBtn.addEventListener('click', () => {
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage({ action: 'minimize' });
-            }
-        });
-    }
-
-    const closeBtn = document.querySelector('#close-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage({ action: 'exit' });
-            }
-        });
-    }
   </script>
 </body>
 </html>
