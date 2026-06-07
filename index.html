@@ -1,0 +1,2540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Incognito Executor UI</title>
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%23121518"/><path d="M14 33c6-13 31-13 38 0-4 9-13 15-26 15-7 0-13-2-18-6l8-4c4 3 18 4 27-5-8-9-25-9-33 0z" fill="%23d6d9dd"/><circle cx="25" cy="32" r="4" fill="%23121518"/><circle cx="40" cy="32" r="4" fill="%23121518"/></svg>'>
+  <style>
+    :root {
+      --bg: #090a0c;
+      --bg-soft: #0d0f12;
+      --panel: #121518;
+      --panel-2: #171a1f;
+      --panel-3: #1e2228;
+      --panel-4: #262b32;
+      --line: rgba(255, 255, 255, .08);
+      --line-strong: rgba(255, 255, 255, .16);
+      --text: #edf0f3;
+      --muted: #a7adb5;
+      --quiet: #737b85;
+      --faint: #4f5761;
+      --accent: #d4d8dd;
+      --accent-2: #8ea1b8;
+      --signal: #b84b55;
+      --ok: #78c49c;
+      --warn: #d6a95f;
+      --danger: #df6570;
+      --shadow: 0 26px 70px rgba(0, 0, 0, .42);
+      --radius: 8px;
+      --font: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "HarmonyOS Sans SC", "Noto Sans CJK SC", "Segoe UI", system-ui, sans-serif;
+      --mono: "Cascadia Mono", "JetBrains Mono", "Microsoft YaHei UI", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      letter-spacing: 0;
+    }
+
+    body {
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, .035) 0 1px, transparent 1px 44px) 0 0 / 44px 44px,
+        radial-gradient(900px 520px at 50% -300px, rgba(142, 161, 184, .18), transparent 66%),
+        radial-gradient(760px 520px at 100% 110%, rgba(184, 75, 85, .08), transparent 58%),
+        var(--bg);
+    }
+
+    #matrix-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      pointer-events: none;
+      opacity: .26;
+      mix-blend-mode: screen;
+      filter: drop-shadow(0 0 10px rgba(212, 216, 221, .16));
+      animation: matrixFade .72s ease both, matrixPulse 7s ease-in-out .72s infinite;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+    }
+
+    svg {
+      display: block;
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 2;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 48px 1fr 68px;
+      background: rgba(8, 9, 11, .72);
+      animation: appIn .34s cubic-bezier(.2, .8, .2, 1) both;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(13, 15, 18, .9);
+      backdrop-filter: blur(18px);
+      animation: topbarIn .3s cubic-bezier(.2, .8, .2, 1) .08s both;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 250px;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+      color: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 0 20px rgba(214, 216, 221, .08);
+      animation: logoBreathe 4.2s ease-in-out infinite;
+    }
+
+    .brand-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .brand-copy {
+      min-width: 0;
+    }
+
+    .brand-title {
+      font-weight: 800;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      white-space: nowrap;
+      animation: titleGlow 5s ease-in-out infinite;
+    }
+
+    .brand-sub {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 2px;
+      color: var(--quiet);
+      font-family: var(--mono);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .signal-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--signal);
+      box-shadow: 0 0 12px rgba(184, 75, 85, .4);
+    }
+
+    .top-meta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 30px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .025);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--faint);
+    }
+
+    .status-dot.live {
+      background: var(--ok);
+      box-shadow: 0 0 0 4px rgba(120, 196, 156, .12), 0 0 16px rgba(120, 196, 156, .35);
+      animation: statusPulse 2.2s ease-in-out infinite;
+    }
+
+    .icon-btn,
+    .dock-btn,
+    .tab-btn,
+    .seg-btn {
+      position: relative;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .026);
+      cursor: pointer;
+      overflow: hidden;
+      transition: color .16s ease, border-color .16s ease, background .16s ease, transform .12s ease;
+    }
+
+    .icon-btn::before,
+    .dock-btn::before,
+    .tab-btn::before,
+    .seg-btn::before {
+      content: "";
+      position: absolute;
+      inset: -1px auto -1px 0;
+      width: 32px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .2), transparent);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-140%) skewX(-18deg);
+    }
+
+    .icon-btn {
+      width: 31px;
+      height: 31px;
+      display: grid;
+      place-items: center;
+    }
+
+    .icon-btn:hover,
+    .dock-btn:hover,
+    .tab-btn:hover,
+    .seg-btn:hover {
+      color: var(--text);
+      border-color: var(--line-strong);
+      background: rgba(255, 255, 255, .055);
+    }
+
+    .icon-btn:hover::before,
+    .dock-btn:hover::before,
+    .tab-btn:hover::before,
+    .seg-btn:hover::before {
+      opacity: 1;
+      animation: sweep .72s cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .icon-btn:active,
+    .dock-btn:active,
+    .tab-btn:active,
+    .seg-btn:active {
+      transform: translateY(1px) scale(.99);
+    }
+
+    .dock-btn svg,
+    .icon-btn svg,
+    .tab-btn svg,
+    .seg-btn svg {
+      transition: transform .18s cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .dock-btn:hover svg,
+    .icon-btn:hover svg,
+    .tab-btn:hover svg,
+    .seg-btn:hover svg {
+      transform: translateY(-1px) scale(1.06);
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 286px;
+    }
+
+    [data-tip]:hover::after {
+      opacity: 1;
+    }
+
+    [data-tip] {
+      position: relative;
+    }
+
+    [data-tip]::after {
+      content: attr(data-tip);
+      position: absolute;
+      z-index: 20;
+      left: auto;
+      right: 0;
+      top: calc(100% + 8px);
+      transform: none;
+      width: max-content;
+      max-width: 220px;
+      padding: 6px 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: var(--panel-3);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      font-family: var(--mono);
+      font-size: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .14s ease;
+    }
+
+    .main {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 43px 1fr 0;
+      background: var(--bg-soft);
+      animation: panelIn .34s cubic-bezier(.2, .8, .2, 1) .12s both;
+    }
+
+    .tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(18, 21, 24, .86);
+      overflow: hidden;
+    }
+
+    #tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      overflow: auto hidden;
+      scrollbar-width: none;
+      flex: 1;
+    }
+
+    #tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-btn {
+      height: 30px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 190px;
+      padding: 0 8px 0 10px;
+      flex: 0 0 auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      animation: tabIn .22s cubic-bezier(.2, .8, .2, 1) both;
+    }
+
+    .tab-btn.active {
+      color: var(--text);
+      background: var(--panel-3);
+      box-shadow: inset 0 -1px 0 var(--accent);
+    }
+
+    .tab-btn.opening {
+      animation: tabOpen .78s cubic-bezier(.16, 1, .3, 1) both;
+    }
+
+    .tab-btn.closing {
+      pointer-events: none;
+      animation: tabClose .48s cubic-bezier(.16, 1, .3, 1) both;
+    }
+
+    .tab-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tab-close {
+      width: 16px;
+      height: 16px;
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      color: var(--faint);
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .tab-close:hover {
+      color: var(--danger);
+      background: rgba(223, 101, 112, .12);
+    }
+
+    .editor-wrap {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      position: relative;
+      overflow: hidden;
+      background: #0b0d10;
+    }
+
+    .editor-wrap::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      background:
+        radial-gradient(190px 74px at var(--type-x, 90px) var(--type-y, 48px), rgba(212, 216, 221, .16), transparent 70%),
+        linear-gradient(90deg, transparent, rgba(212, 216, 221, .08), transparent);
+      mix-blend-mode: screen;
+    }
+
+    .editor-wrap.typing::after {
+      animation: typingGlow .52s ease-out both;
+    }
+
+    .editor-wrap.typing #editor {
+      animation: editorTypePulse .32s ease-out both;
+    }
+
+    .typing-burst {
+      position: absolute;
+      z-index: 12;
+      width: 9px;
+      height: 22px;
+      border-radius: 4px;
+      background: rgba(230, 234, 238, .54);
+      box-shadow: 0 0 16px rgba(230, 234, 238, .42), 0 0 34px rgba(142, 161, 184, .22);
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .intellisense {
+      position: absolute;
+      z-index: 24;
+      display: none;
+      width: min(320px, calc(100% - 24px));
+      max-height: 214px;
+      overflow: hidden auto;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: rgba(23, 26, 31, .97);
+      box-shadow: var(--shadow), 0 0 0 1px rgba(255, 255, 255, .035) inset;
+      backdrop-filter: blur(14px);
+      font-family: var(--mono);
+      animation: suggestIn .14s cubic-bezier(.16, 1, .3, 1) both;
+    }
+
+    .intellisense.open {
+      display: block;
+    }
+
+    .suggest-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 6px 8px;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255, 255, 255, .04);
+    }
+
+    .suggest-item:last-child {
+      border-bottom: 0;
+    }
+
+    .suggest-item.active {
+      color: var(--text);
+      background: rgba(255, 255, 255, .075);
+      box-shadow: inset 2px 0 0 var(--accent);
+    }
+
+    .suggest-kind {
+      min-width: 42px;
+      height: 19px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      color: var(--quiet);
+      background: rgba(255, 255, 255, .035);
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+
+    .suggest-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .suggest-detail {
+      max-width: 108px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--quiet);
+      font-size: 10px;
+    }
+
+    .line-gutter {
+      height: 100%;
+      overflow: hidden;
+      padding: 14px 0 14px 0;
+      border-right: 1px solid var(--line);
+      background: rgba(255, 255, 255, .018);
+      color: var(--faint);
+      font-family: var(--mono);
+      font-size: var(--editor-size, 13px);
+      line-height: 22px;
+      text-align: right;
+      user-select: none;
+    }
+
+    .line-gutter span {
+      display: block;
+      padding: 0 12px 0 4px;
+    }
+
+    #editor {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      resize: none;
+      border: 0;
+      outline: 0;
+      padding: 14px 16px;
+      background:
+        linear-gradient(rgba(255, 255, 255, .025) 1px, transparent 1px) 0 13px / 100% 22px,
+        #0b0d10;
+      color: #eef1f4;
+      caret-color: var(--accent);
+      font-family: var(--mono);
+      font-size: var(--editor-size, 13px);
+      line-height: 22px;
+      tab-size: 2;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    body.wrap-on #editor {
+      white-space: pre-wrap;
+    }
+
+    body.lines-off .editor-wrap {
+      grid-template-columns: 0 1fr;
+    }
+
+    body.lines-off .line-gutter {
+      display: none;
+    }
+
+    body.latin-font {
+      --font: "Segoe UI", system-ui, sans-serif;
+      --mono: "Cascadia Mono", Consolas, monospace;
+    }
+
+    .side {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      border-left: 1px solid var(--line);
+      background: rgba(18, 21, 24, .82);
+      overflow: hidden;
+      animation: panelIn .36s cubic-bezier(.2, .8, .2, 1) .16s both;
+    }
+
+    .side-scroll {
+      min-height: 0;
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .025);
+      overflow: hidden;
+      margin-bottom: 12px;
+      animation: panelIn .28s cubic-bezier(.2, .8, .2, 1) .2s both;
+    }
+
+    .panel-head {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 10px;
+      border-bottom: 1px solid var(--line);
+      color: var(--quiet);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--line);
+      gap: 1px;
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 10px;
+      background: rgba(18, 21, 24, .94);
+    }
+
+    .stat-label {
+      color: var(--faint);
+      font-family: var(--mono);
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin-top: 5px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .console {
+      height: 188px;
+      display: none;
+      grid-template-rows: 34px 1fr;
+      border-top: 1px solid var(--line);
+      background: rgba(8, 9, 11, .78);
+    }
+
+    .console.open {
+      display: grid;
+      animation: consoleIn .2s cubic-bezier(.2, .8, .2, 1) both;
+    }
+
+    .console-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      border-bottom: 1px solid var(--line);
+      color: var(--quiet);
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    #console-log {
+      overflow: auto;
+      padding: 9px 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+
+    .log-line {
+      display: flex;
+      gap: 8px;
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, .025);
+    }
+
+    .log-time {
+      color: var(--faint);
+      flex: 0 0 auto;
+    }
+
+    .log-line.ok {
+      color: var(--ok);
+    }
+
+    .log-line.warn {
+      color: var(--warn);
+    }
+
+    .log-line.danger {
+      color: var(--danger);
+    }
+
+    .dock {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-top: 1px solid var(--line);
+      background: rgba(13, 15, 18, .92);
+      overflow: auto hidden;
+      animation: dockIn .38s cubic-bezier(.2, .8, .2, 1) .18s both;
+    }
+
+    .dock-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-right: 10px;
+      border-right: 1px solid var(--line);
+      flex: 0 0 auto;
+    }
+
+    .dock-group:last-child {
+      border-right: 0;
+    }
+
+    .dock-label {
+      color: var(--faint);
+      font-family: var(--mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+
+    .dock-buttons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dock-btn {
+      height: 42px;
+      min-width: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 0 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .dock-btn:nth-child(1) { animation: dockButtonIn .24s cubic-bezier(.2, .8, .2, 1) .24s both; }
+    .dock-btn:nth-child(2) { animation: dockButtonIn .24s cubic-bezier(.2, .8, .2, 1) .29s both; }
+    .dock-btn:nth-child(3) { animation: dockButtonIn .24s cubic-bezier(.2, .8, .2, 1) .34s both; }
+    .dock-btn:nth-child(4) { animation: dockButtonIn .24s cubic-bezier(.2, .8, .2, 1) .39s both; }
+
+    .dock-btn.primary {
+      color: #101316;
+      border-color: #d6d9dd;
+      background: linear-gradient(180deg, #f0f2f4, #bfc5cc);
+    }
+
+    .dock-btn.compact span {
+      display: none;
+    }
+
+    .settings-view {
+      position: absolute;
+      z-index: 8;
+      inset: 0;
+      display: none;
+      grid-template-rows: auto 1fr;
+      border: 1px solid var(--line-strong);
+      border-radius: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, .04), transparent 130px),
+        rgba(18, 21, 24, .97);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+      overflow: hidden;
+    }
+
+    .settings-view::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .14), transparent);
+      transform: translateX(-120%) skewX(-16deg);
+    }
+
+    .settings-view.open {
+      display: grid;
+      animation: drawerIn .22s cubic-bezier(.2, .8, .2, 1) both;
+    }
+
+    .settings-view.open.settings-opening {
+      animation: settingsOpen .72s cubic-bezier(.16, 1, .3, 1) both;
+    }
+
+    .settings-view.open.settings-opening::before {
+      animation: settingsScan .9s cubic-bezier(.16, 1, .3, 1) .06s both;
+    }
+
+    .settings-view.open.settings-opening .setting-row {
+      animation: settingsRowIn .48s cubic-bezier(.16, 1, .3, 1) both;
+    }
+
+    .settings-view.open.settings-opening .setting-row:nth-child(1) { animation-delay: .08s; }
+    .settings-view.open.settings-opening .setting-row:nth-child(2) { animation-delay: .12s; }
+    .settings-view.open.settings-opening .setting-row:nth-child(3) { animation-delay: .16s; }
+    .settings-view.open.settings-opening .setting-row:nth-child(4) { animation-delay: .20s; }
+
+    .editor-wrap.settings-active #editor,
+    .editor-wrap.settings-active .line-gutter {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .drawer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .drawer-title {
+      font-weight: 900;
+      font-size: 17px;
+    }
+
+    .drawer-sub {
+      margin-top: 3px;
+      color: var(--quiet);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .settings-body {
+      overflow: auto;
+      padding: 12px 14px 16px;
+    }
+
+    .setting-section {
+      margin-bottom: 16px;
+    }
+
+    .setting-section h3 {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .setting-row {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 9px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, .06);
+    }
+
+    .setting-row:last-child {
+      border-bottom: 0;
+    }
+
+    .setting-label {
+      min-width: 0;
+    }
+
+    .setting-title {
+      color: var(--text);
+      font-weight: 750;
+      font-size: 12px;
+    }
+
+    .setting-note {
+      margin-top: 3px;
+      color: var(--quiet);
+      font-family: var(--mono);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .switch {
+      position: relative;
+      width: 42px;
+      height: 24px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      opacity: 0;
+      position: absolute;
+      inset: 0;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: var(--panel-4);
+      cursor: pointer;
+      transition: background .16s ease, border-color .16s ease;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 3px;
+      top: 3px;
+      border-radius: 50%;
+      background: #858b94;
+      transition: transform .16s ease, background .16s ease;
+    }
+
+    .switch input:checked + .slider {
+      border-color: rgba(120, 196, 156, .42);
+      background: rgba(120, 196, 156, .16);
+    }
+
+    .switch input:checked + .slider::before {
+      transform: translateX(18px);
+      background: var(--ok);
+    }
+
+    .field,
+    .range {
+      width: 148px;
+      max-width: 46vw;
+      height: 32px;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 0 9px;
+      outline: 0;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .range {
+      accent-color: var(--accent);
+      padding: 0;
+    }
+
+    .segmented {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, .18);
+    }
+
+    .seg-btn {
+      height: 27px;
+      padding: 0 9px;
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .seg-btn.active {
+      color: #101316;
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .toast-stack {
+      position: fixed;
+      z-index: 50;
+      right: 14px;
+      bottom: 82px;
+      display: grid;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      width: min(330px, calc(100vw - 28px));
+      padding: 10px 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: rgba(30, 34, 40, .96);
+      box-shadow: var(--shadow);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      animation: toastIn .18s ease both;
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateX(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes appIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(.992);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes topbarIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes panelIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes tabIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes tabOpen {
+      0% {
+        opacity: 0;
+        transform: translateY(7px) scale(.92);
+        max-width: 44px;
+        filter: brightness(1.24);
+      }
+      72% {
+        opacity: 1;
+        transform: translateY(-1px) scale(1.025);
+        max-width: 190px;
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        max-width: 190px;
+        filter: brightness(1);
+      }
+    }
+
+    @keyframes tabClose {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        max-width: 190px;
+      }
+      to {
+        opacity: 0;
+        transform: translateY(5px) scale(.88);
+        max-width: 0;
+        padding-left: 0;
+        padding-right: 0;
+        margin-right: -6px;
+      }
+    }
+
+    @keyframes dockIn {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes dockButtonIn {
+      from {
+        opacity: 0;
+        transform: translateY(9px) scale(.96);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes drawerIn {
+      from {
+        opacity: 0;
+        transform: translateX(12px) scale(.985);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+    }
+
+    @keyframes settingsOpen {
+      0% {
+        opacity: 0;
+        transform: translateX(16px) translateY(8px) scale(.97);
+        filter: brightness(1.24);
+      }
+      68% {
+        opacity: 1;
+        transform: translateX(-1px) translateY(0) scale(1.01);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+        filter: brightness(1);
+      }
+    }
+
+    @keyframes settingsScan {
+      0% {
+        opacity: 0;
+        transform: translateX(-120%) skewX(-16deg);
+      }
+      22% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translateX(180%) skewX(-16deg);
+      }
+    }
+
+    @keyframes settingsRowIn {
+      from {
+        opacity: 0;
+        transform: translateX(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes consoleIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes logoBreathe {
+      0%, 100% {
+        filter: brightness(1);
+        transform: translateY(0);
+      }
+      50% {
+        filter: brightness(1.18);
+        transform: translateY(-1px);
+      }
+    }
+
+    @keyframes typingGlow {
+      0% {
+        opacity: 0;
+        transform: scaleX(.94);
+      }
+      24% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: scaleX(1);
+      }
+    }
+
+    @keyframes suggestIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px) scale(.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes editorTypePulse {
+      0% {
+        caret-color: var(--text);
+        filter: brightness(1.12);
+      }
+      100% {
+        caret-color: var(--accent);
+        filter: brightness(1);
+      }
+    }
+
+    @keyframes titleGlow {
+      0%, 100% {
+        text-shadow: 0 0 0 transparent;
+      }
+      50% {
+        text-shadow: 0 0 12px rgba(212, 216, 221, .22);
+      }
+    }
+
+    @keyframes statusPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 4px rgba(120, 196, 156, .12), 0 0 16px rgba(120, 196, 156, .35);
+      }
+      50% {
+        box-shadow: 0 0 0 7px rgba(120, 196, 156, .02), 0 0 22px rgba(120, 196, 156, .52);
+      }
+    }
+
+    @keyframes sweep {
+      from {
+        transform: translateX(-140%) skewX(-18deg);
+      }
+      to {
+        transform: translateX(260%) skewX(-18deg);
+      }
+    }
+
+    @keyframes matrixFade {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: .26;
+      }
+    }
+
+    @keyframes matrixPulse {
+      0%, 100% {
+        opacity: .22;
+      }
+      50% {
+        opacity: .31;
+      }
+    }
+
+    @media (max-width: 920px) {
+      .workspace {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .side {
+        display: none;
+      }
+
+      .top-meta .pill:nth-child(n+3) {
+        display: none;
+      }
+
+      .brand {
+        min-width: 178px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        grid-template-rows: 48px 1fr 74px;
+      }
+
+      .brand-sub,
+      .top-meta {
+        display: none;
+      }
+
+      .dock-btn span,
+      .dock-label {
+        display: none;
+      }
+
+      .dock-group {
+        padding-right: 2px;
+        border-right: 0;
+      }
+
+      .field,
+      .range {
+        width: 120px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="matrix-canvas" aria-hidden="true"></canvas>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <img src="assets/incognito-logo.jpg" alt="">
+        </div>
+        <div class="brand-copy">
+          <div class="brand-title">Incognito</div>
+          <div class="brand-sub"><span class="signal-dot"></span><span>Incognito mode - local font</span></div>
+        </div>
+      </div>
+
+      <div class="top-meta">
+        <div class="pill"><span id="status-dot" class="status-dot"></span><span id="attach-status">Detached</span></div>
+        <div class="pill">RPC <strong id="rpc-pill">Off</strong></div>
+        <div class="pill">Auto Attach <strong id="auto-pill">Off</strong></div>
+        <div class="pill">Line <strong id="line-pill">1</strong> : <strong id="col-pill">1</strong></div>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <button class="icon-btn" id="minimize-btn" title="Minimize">
+          <svg viewBox="0 0 24 24"><path d="M5 12h14"></path></svg>
+        </button>
+        <button class="icon-btn" id="close-btn" title="Close" style="color: var(--danger);">
+          <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="main">
+        <div class="tabs">
+          <div id="tabs"></div>
+          <button class="icon-btn" id="new-tab" type="button" title="New Tab" data-tip="New Tab">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          </button>
+        </div>
+        <div class="editor-wrap">
+          <div class="line-gutter" id="line-gutter"></div>
+          <textarea id="editor" spellcheck="false" aria-label="Script editor"></textarea>
+          <div class="intellisense" id="intellisense" role="listbox" aria-label="IntelliSense suggestions"></div>
+        </div>
+      </section>
+
+      <aside class="side">
+        <div class="side-scroll">
+          <section class="panel">
+            <div class="panel-head"><span>Status</span><span id="clock">00:00</span></div>
+            <div class="status-grid">
+              <div class="stat"><div class="stat-label">Session</div><div class="stat-value" id="session-stat">Incognito</div></div>
+              <div class="stat"><div class="stat-label">Tabs</div><div class="stat-value" id="tabs-stat">1</div></div>
+              <div class="stat"><div class="stat-label">Lines</div><div class="stat-value" id="lines-stat">1</div></div>
+            </div>
+          </section>
+
+        </div>
+        <section class="console" id="console">
+          <div class="console-head">
+            <span>Console</span>
+            <button class="icon-btn" id="clear-console" type="button" title="Clear Console">
+              <svg viewBox="0 0 24 24"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="m6 6 1 16h10l1-16"></path></svg>
+            </button>
+          </div>
+          <div id="console-log"></div>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="dock">
+      <section class="dock-group">
+        <div class="dock-label">Run</div>
+        <div class="dock-buttons">
+          <button class="dock-btn primary" type="button" data-action="execute"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg><span>Execute</span></button>
+          <button class="dock-btn" type="button" data-action="attach"><svg viewBox="0 0 24 24"><path d="M9 7 7 9a4 4 0 0 0 0 6l2 2"></path><path d="m15 7 2 2a4 4 0 0 1 0 6l-2 2"></path><path d="M8 12h8"></path></svg><span>Attach</span></button>
+          <button class="dock-btn" type="button" data-action="detach"><svg viewBox="0 0 24 24"><path d="M8 12h8"></path><path d="m3 3 18 18"></path><path d="M9 7 7 9a4 4 0 0 0 0 6l2 2"></path><path d="m15 7 2 2a4 4 0 0 1 .7 4.6"></path></svg><span>Detach</span></button>
+        </div>
+      </section>
+
+      <section class="dock-group">
+        <div class="dock-label">File</div>
+        <div class="dock-buttons">
+          <button class="dock-btn" type="button" data-action="open"><svg viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8h-9l-2-3H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2Z"></path></svg><span>Open</span></button>
+          <button class="dock-btn" type="button" data-action="save"><svg viewBox="0 0 24 24"><path d="M5 3h14l2 2v16H3V5l2-2Z"></path><path d="M7 3v7h10V3"></path><path d="M7 21v-7h10v7"></path></svg><span>Save</span></button>
+          <button class="dock-btn" type="button" data-action="clear"><svg viewBox="0 0 24 24"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="m6 6 1 16h10l1-16"></path></svg><span>Clear</span></button>
+        </div>
+      </section>
+
+      <section class="dock-group">
+        <div class="dock-label">View</div>
+        <div class="dock-buttons">
+          <button class="dock-btn" type="button" data-action="console"><svg viewBox="0 0 24 24"><path d="m7 8 4 4-4 4"></path><path d="M13 16h6"></path><path d="M4 4h16v16H4z"></path></svg><span>Console</span></button>
+          <button class="dock-btn" type="button" data-action="settings"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.05.05a2 2 0 0 1-2.83 2.83l-.05-.05A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.07A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.05.05a2 2 0 0 1-2.83-2.83l.05-.05A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.07A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.05-.05a2 2 0 0 1 2.83-2.83l.05.05A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.07A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.05-.05a2 2 0 0 1 2.83 2.83l-.05.05A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.07A1.7 1.7 0 0 0 19.4 15Z"></path></svg><span>Settings</span></button>
+        </div>
+      </section>
+    </footer>
+  </div>
+
+  <section class="settings-view" id="settings-view" aria-label="Settings">
+    <div class="drawer-head">
+      <div>
+        <div class="drawer-title">Settings</div>
+        <div class="drawer-sub">Incognito profile - grey interface</div>
+      </div>
+      <button class="icon-btn" id="close-settings" type="button" title="Close Settings">
+        <svg viewBox="0 0 24 24"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+      </button>
+    </div>
+    <div class="settings-body">
+      <section class="setting-section">
+        <h3>Executor</h3>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Auto Attach</div><div class="setting-note">Simulates an attach state when the UI opens.</div></div>
+          <label class="switch"><input id="set-auto" type="checkbox"><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Auto Execute</div><div class="setting-note">Queues the active tab after simulated attach.</div></div>
+          <label class="switch"><input id="set-auto-exec" type="checkbox"><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Attach Profile</div><div class="setting-note">Controls the visible executor state only.</div></div>
+          <select class="field" id="set-profile">
+            <option>Manual</option>
+            <option>Quiet Watch</option>
+            <option>Local</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="setting-section">
+        <h3>Presence</h3>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Discord RPC</div><div class="setting-note">Shows a local presence indicator in this UI.</div></div>
+          <label class="switch"><input id="set-rpc" type="checkbox"><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">RPC Details</div><div class="setting-note">Displayed on the status pill.</div></div>
+          <input class="field" id="set-rpc-text" value="Incognito">
+        </div>
+      </section>
+
+      <section class="setting-section">
+        <h3>Editor</h3>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Local Font Stack</div><div class="setting-note">Prioritizes Microsoft YaHei and PingFang SC.</div></div>
+          <label class="switch"><input id="set-local-font" type="checkbox" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Line Numbers</div><div class="setting-note">Toggle the editor gutter.</div></div>
+          <label class="switch"><input id="set-lines" type="checkbox" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Word Wrap</div><div class="setting-note">Wrap long lines inside the editor.</div></div>
+          <label class="switch"><input id="set-wrap" type="checkbox"><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Font Size</div><div class="setting-note"><span id="font-size-label">13</span>px</div></div>
+          <input class="range" id="set-font-size" type="range" min="11" max="18" value="13">
+        </div>
+      </section>
+
+      <section class="setting-section">
+        <h3>Interface</h3>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Theme Tone</div><div class="setting-note">Grey-first palettes with small contrast shifts.</div></div>
+          <div class="segmented">
+            <button class="seg-btn active" type="button" data-theme="graphite">Graphite</button>
+            <button class="seg-btn" type="button" data-theme="ash">Ash</button>
+            <button class="seg-btn" type="button" data-theme="steel">Steel</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Compact Dock</div><div class="setting-note">Keeps the executor actions icon-first.</div></div>
+          <label class="switch"><input id="set-compact" type="checkbox"><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label"><div class="setting-title">Incognito Session</div><div class="setting-note">Keeps the visible profile neutral.</div></div>
+          <label class="switch"><input id="set-incognito" type="checkbox" checked><span class="slider"></span></label>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <div class="toast-stack" id="toast-stack"></div>
+
+  <script>
+    const sample = `local profile = "incognito"
+print("Loaded " .. profile)
+`;
+
+    const state = {
+      tabs: [{ id: 1, name: "main.lua", value: sample, type: "code" }],
+      active: 1,
+      attached: false,
+      autoAttach: false,
+      rpc: false
+    };
+
+    const el = id => document.getElementById(id);
+    const editor = el("editor");
+    const editorWrap = document.querySelector(".editor-wrap");
+    const intellisense = el("intellisense");
+    const gutter = el("line-gutter");
+    const consoleBox = el("console");
+    const consoleLog = el("console-log");
+    const settingsView = el("settings-view");
+    const matrixCanvas = el("matrix-canvas");
+    const matrixCtx = matrixCanvas.getContext("2d");
+    const matrixChars = "01{}[]<>/\\|$#@*+=-".split("");
+    let matrixStreams = [];
+    let matrixAnimation = 0;
+    let typingTimer = 0;
+    let suggestItems = [];
+    let suggestIndex = 0;
+    let suggestToken = "";
+    let suggestStart = 0;
+    let bridgeId = 0;
+    const closingTabs = new Set();
+    editorWrap.appendChild(settingsView);
+
+    const SUGGESTIONS = [
+      ["local", "kw", "local ", "local variable"],
+      ["function", "kw", "function ", "function block"],
+      ["end", "kw", "end", "close block"],
+      ["if", "kw", "if  then\n\t\nend", "conditional"],
+      ["then", "kw", "then", "conditional"],
+      ["else", "kw", "else", "conditional"],
+      ["elseif", "kw", "elseif  then", "conditional"],
+      ["for", "kw", "for i = 1,  do\n\t\nend", "loop"],
+      ["while", "kw", "while  do\n\t\nend", "loop"],
+      ["repeat", "kw", "repeat\n\t\nuntil ", "loop"],
+      ["return", "kw", "return ", "keyword"],
+      ["true", "lit", "true", "boolean"],
+      ["false", "lit", "false", "boolean"],
+      ["nil", "lit", "nil", "literal"],
+      ["print", "fn", "print()", "output"],
+      ["warn", "fn", "warn()", "output"],
+      ["pairs", "fn", "pairs()", "iterator"],
+      ["ipairs", "fn", "ipairs()", "iterator"],
+      ["pcall", "fn", "pcall()", "protected call"],
+      ["typeof", "fn", "typeof()", "type check"],
+      ["tonumber", "fn", "tonumber()", "convert"],
+      ["tostring", "fn", "tostring()", "convert"],
+      ["table.insert", "api", "table.insert()", "table"],
+      ["table.remove", "api", "table.remove()", "table"],
+      ["table.find", "api", "table.find()", "table"],
+      ["string.format", "api", "string.format()", "string"],
+      ["string.lower", "api", "string.lower()", "string"],
+      ["string.upper", "api", "string.upper()", "string"],
+      ["math.floor", "api", "math.floor()", "math"],
+      ["math.random", "api", "math.random()", "math"],
+      ["task.wait", "api", "task.wait()", "scheduler"],
+      ["task.spawn", "api", "task.spawn(function()\n\t\nend)", "scheduler"],
+      ["task.delay", "api", "task.delay(, function()\n\t\nend)", "scheduler"],
+      ["game", "rbx", "game", "DataModel"],
+      ["workspace", "rbx", "workspace", "Workspace"],
+      ["script", "rbx", "script", "current script"],
+      ["game:GetService", "rbx", "game:GetService(\"\")", "service"],
+      ["Players", "rbx", "game:GetService(\"Players\")", "service"],
+      ["RunService", "rbx", "game:GetService(\"RunService\")", "service"],
+      ["UserInputService", "rbx", "game:GetService(\"UserInputService\")", "service"],
+      ["TweenService", "rbx", "game:GetService(\"TweenService\")", "service"],
+      ["ReplicatedStorage", "rbx", "game:GetService(\"ReplicatedStorage\")", "service"],
+      ["Lighting", "rbx", "game:GetService(\"Lighting\")", "service"],
+      ["Instance.new", "rbx", "Instance.new(\"\")", "constructor"],
+      ["Vector3.new", "rbx", "Vector3.new(0, 0, 0)", "datatype"],
+      ["CFrame.new", "rbx", "CFrame.new()", "datatype"],
+      ["Color3.fromRGB", "rbx", "Color3.fromRGB(255, 255, 255)", "datatype"],
+      ["UDim2.new", "rbx", "UDim2.new(0, 0, 0, 0)", "datatype"],
+      ["Enum", "rbx", "Enum.", "enum"],
+      ["WaitForChild", "rbx", "WaitForChild(\"\")", "method"],
+      ["FindFirstChild", "rbx", "FindFirstChild(\"\")", "method"],
+      ["GetChildren", "rbx", "GetChildren()", "method"],
+      ["Connect", "rbx", "Connect(function()\n\t\nend)", "event"],
+      ["Destroy", "rbx", "Destroy()", "method"]
+    ].map(([label, kind, insert, detail]) => ({ label, kind, insert, detail }));
+
+    function hasBackend() {
+      return !!(window.chrome && window.chrome.webview && window.chrome.webview.postMessage);
+    }
+
+    function postBackend(action, payload = {}) {
+      const message = {
+        source: "incognito-ui",
+        id: ++bridgeId,
+        action,
+        payload
+      };
+      if (!hasBackend()) return false;
+      window.chrome.webview.postMessage(message);
+      return true;
+    }
+
+    function backendMessage(event) {
+      const message = typeof event.data === "string" ? safeJson(event.data) : event.data;
+      if (!message || !message.action) return;
+      const data = message.payload || message;
+      if (message.action === "attached") {
+        setAttached(true, data.source || data.pid || "backend");
+        if (el("set-auto-exec").checked) executeActive();
+      } else if (message.action === "detached") {
+        setAttached(false);
+      } else if (message.action === "attach_failed") {
+        setAttached(false);
+        log(data.message || "Attach failed", "danger");
+        toast(data.message || "Attach failed", "warn");
+      } else if (message.action === "executed") {
+        log(data.message || "Backend executed script", "ok");
+        toast("Executed");
+      } else if (message.action === "execution_failed") {
+        log(data.message || "Execution failed", "danger");
+        toast(data.message || "Execution failed", "warn");
+      } else if (message.action === "file_opened") {
+        newTab(data.name || "script.lua", data.content || "");
+      } else if (message.action === "file_saved") {
+        log(data.message || "File saved", "ok");
+        toast("Saved");
+      } else if (message.action === "load_settings") {
+        applyBackendSettings(data.settings || data);
+      } else if (message.action === "log") {
+        log(data.message || "", data.level || data.type || "");
+      }
+    }
+
+    function collectSettings() {
+      return {
+        autoAttach: !!el("set-auto").checked,
+        autoExecute: !!el("set-auto-exec").checked,
+        attachProfile: el("set-profile").value,
+        discordRpc: !!el("set-rpc").checked,
+        rpcDetails: el("set-rpc-text").value,
+        localFont: !!el("set-local-font").checked,
+        lineNumbers: !!el("set-lines").checked,
+        wordWrap: !!el("set-wrap").checked,
+        fontSize: Number(el("set-font-size").value),
+        compactDock: !!el("set-compact").checked,
+        incognitoSession: !!el("set-incognito").checked,
+        theme: document.querySelector("[data-theme].active")?.dataset.theme || "graphite"
+      };
+    }
+
+    function pushSettings() {
+      postBackend("settings_changed", collectSettings());
+    }
+
+    function applyBackendSettings(settings) {
+      if (!settings) return;
+      if ("autoAttach" in settings) el("set-auto").checked = !!settings.autoAttach;
+      if ("autoExecute" in settings) el("set-auto-exec").checked = !!settings.autoExecute;
+      if ("attachProfile" in settings) el("set-profile").value = settings.attachProfile;
+      if ("discordRpc" in settings) el("set-rpc").checked = !!settings.discordRpc;
+      if ("rpcDetails" in settings) el("set-rpc-text").value = settings.rpcDetails || "Incognito";
+      if ("localFont" in settings) el("set-local-font").checked = !!settings.localFont;
+      if ("lineNumbers" in settings) el("set-lines").checked = !!settings.lineNumbers;
+      if ("wordWrap" in settings) el("set-wrap").checked = !!settings.wordWrap;
+      if ("fontSize" in settings) el("set-font-size").value = String(settings.fontSize || 13);
+      if ("compactDock" in settings) el("set-compact").checked = !!settings.compactDock;
+      if ("incognitoSession" in settings) el("set-incognito").checked = !!settings.incognitoSession;
+      if ("theme" in settings) {
+        document.querySelectorAll("[data-theme]").forEach(item => item.classList.toggle("active", item.dataset.theme === settings.theme));
+        applyTheme(settings.theme);
+      }
+      document.body.classList.toggle("lines-off", !el("set-lines").checked);
+      document.body.classList.toggle("wrap-on", el("set-wrap").checked);
+      document.body.classList.toggle("latin-font", !el("set-local-font").checked);
+      document.querySelectorAll(".dock-btn").forEach(button => button.classList.toggle("compact", el("set-compact").checked));
+      document.documentElement.style.setProperty("--editor-size", `${el("set-font-size").value}px`);
+      el("font-size-label").textContent = el("set-font-size").value;
+      el("rpc-pill").textContent = el("set-rpc").checked ? "On" : "Off";
+      el("auto-pill").textContent = el("set-auto").checked ? "On" : "Off";
+      el("session-stat").textContent = el("set-incognito").checked ? "Incognito" : "Visible";
+      updateStats();
+    }
+
+    function safeJson(text) {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return null;
+      }
+    }
+
+    function resizeMatrix() {
+      const scale = window.devicePixelRatio || 1;
+      matrixCanvas.width = Math.floor(window.innerWidth * scale);
+      matrixCanvas.height = Math.floor(window.innerHeight * scale);
+      matrixCanvas.style.width = `${window.innerWidth}px`;
+      matrixCanvas.style.height = `${window.innerHeight}px`;
+      matrixCtx.setTransform(scale, 0, 0, scale, 0, 0);
+      initMatrix();
+    }
+
+    function initMatrix() {
+      matrixStreams = [];
+      const columns = Math.floor(window.innerWidth / 15) + 2;
+      for (let index = 0; index < columns; index += 1) {
+        matrixStreams.push({
+          x: index * 15 + (Math.random() * 5 - 2.5),
+          y: Math.random() * window.innerHeight,
+          speed: .65 + Math.random() * 1.8,
+          length: 14 + Math.floor(Math.random() * 36),
+          alpha: .18 + Math.random() * .42,
+          phase: Math.random() * 1000
+        });
+      }
+    }
+
+    function renderMatrix() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const rowHeight = 15;
+      const colWidth = 15;
+      const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#d4d8dd";
+      const drift = (Date.now() / 110) % rowHeight;
+
+      matrixCtx.clearRect(0, 0, width, height);
+      matrixCtx.font = "700 13px Cascadia Mono, Consolas, monospace";
+      matrixCtx.textAlign = "center";
+      matrixCtx.textBaseline = "top";
+      matrixCtx.fillStyle = accent;
+
+      for (let x = 4; x < width + colWidth; x += colWidth) {
+        const columnPhase = (x * 17) % rowHeight;
+        for (let y = -rowHeight; y < height + rowHeight; y += rowHeight) {
+          const charIndex = Math.abs(Math.floor((x * 13 + y * 7 + Date.now() / 420) % matrixChars.length));
+          matrixCtx.globalAlpha = .018 + (((x + y) % 5) * .005);
+          matrixCtx.fillText(matrixChars[charIndex], x, y + drift + columnPhase);
+        }
+      }
+
+      matrixCtx.shadowColor = accent;
+      matrixStreams.forEach(stream => {
+        stream.y += stream.speed;
+        if (stream.y - stream.length * rowHeight > height) {
+          stream.y = Math.random() * -height * .45;
+          stream.speed = .65 + Math.random() * 1.8;
+          stream.length = 14 + Math.floor(Math.random() * 36);
+          stream.alpha = .18 + Math.random() * .42;
+        }
+
+        for (let index = 0; index < stream.length; index += 1) {
+          const y = stream.y - index * rowHeight;
+          if (y < -rowHeight || y > height + rowHeight) continue;
+          const fade = 1 - index / stream.length;
+          const charIndex = Math.abs(Math.floor((stream.phase + index * 5 + Date.now() / 180) % matrixChars.length));
+          matrixCtx.globalAlpha = Math.max(.025, fade * stream.alpha);
+          matrixCtx.shadowBlur = index < 4 ? 9 : 0;
+          matrixCtx.fillText(matrixChars[charIndex], stream.x, y);
+        }
+      });
+
+      matrixCtx.globalAlpha = 1;
+      matrixCtx.shadowBlur = 0;
+      matrixAnimation = requestAnimationFrame(renderMatrix);
+    }
+
+    function easeOut(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function easeBack(t) {
+      const c1 = 1.42;
+      const c3 = c1 + 1;
+      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    }
+
+    function lerp(start, end, t) {
+      return start + (end - start) * t;
+    }
+
+    function frameMotion(duration, update, done) {
+      if (document.hidden) {
+        update(1, 1);
+        if (done) done();
+        return;
+      }
+      const start = performance.now();
+      const tick = now => {
+        const raw = Math.min(1, (now - start) / duration);
+        update(easeOut(raw), raw);
+        if (raw < 1) {
+          requestAnimationFrame(tick);
+        } else if (done) {
+          done();
+        }
+      };
+      requestAnimationFrame(tick);
+    }
+
+    function playTabOpenAnimation(button, done) {
+      button.style.opacity = "0";
+      button.style.transform = "translateY(18px) scale(.62)";
+      button.style.filter = "brightness(1.9)";
+      frameMotion(820, (ease, raw) => {
+        const back = Math.min(1.16, easeBack(Math.min(1, raw * 1.18)));
+        button.style.opacity = String(Math.min(1, raw * 1.45));
+        button.style.transform = `translateY(${lerp(18, 0, ease)}px) scale(${lerp(.62, 1, back)})`;
+        button.style.filter = `brightness(${lerp(1.9, 1, ease)})`;
+      }, () => {
+        button.style.opacity = "";
+        button.style.transform = "";
+        button.style.filter = "";
+        if (done) done();
+      });
+    }
+
+    function playTabCloseAnimation(button, done) {
+      const startWidth = button.getBoundingClientRect().width || 130;
+      frameMotion(560, (ease, raw) => {
+        button.style.opacity = String(lerp(1, 0, ease));
+        button.style.transform = `translateY(${lerp(0, 16, ease)}px) scale(${lerp(1, .54, ease)})`;
+        button.style.maxWidth = `${lerp(startWidth, 0, ease)}px`;
+        button.style.paddingLeft = `${lerp(10, 0, ease)}px`;
+        button.style.paddingRight = `${lerp(8, 0, ease)}px`;
+        button.style.filter = `brightness(${raw < .45 ? lerp(1, 1.45, raw / .45) : lerp(1.45, .45, (raw - .45) / .55)})`;
+      }, done);
+    }
+
+    function playSettingsMotion() {
+      settingsView.style.opacity = "0";
+      settingsView.style.transform = "translateY(30px) scale(.9)";
+      settingsView.style.filter = "brightness(1.8)";
+      frameMotion(820, (ease, raw) => {
+        const lift = raw < .72 ? lerp(30, -6, raw / .72) : lerp(-6, 0, (raw - .72) / .28);
+        const scale = raw < .72 ? lerp(.9, 1.025, raw / .72) : lerp(1.025, 1, (raw - .72) / .28);
+        settingsView.style.opacity = String(Math.min(1, raw * 1.6));
+        settingsView.style.transform = `translateY(${lift}px) scale(${scale})`;
+        settingsView.style.filter = `brightness(${lerp(1.8, 1, ease)})`;
+      }, () => {
+        settingsView.style.opacity = "";
+        settingsView.style.transform = "";
+        settingsView.style.filter = "";
+      });
+
+      Array.from(settingsView.querySelectorAll(".setting-row")).forEach((row, index) => {
+        row.style.opacity = "0";
+        row.style.transform = "translateX(28px)";
+        const delayFrames = Math.min(index, 10) * 4;
+        let waited = 0;
+        const startRow = () => frameMotion(520, ease => {
+          row.style.opacity = String(ease);
+          row.style.transform = `translateX(${lerp(28, 0, ease)}px)`;
+          row.style.filter = `brightness(${lerp(1.45, 1, ease)})`;
+        }, () => {
+          row.style.opacity = "";
+          row.style.transform = "";
+          row.style.filter = "";
+        });
+        const wait = () => {
+          if (waited >= delayFrames) {
+            startRow();
+          } else {
+            waited += 1;
+            requestAnimationFrame(wait);
+          }
+        };
+        wait();
+      });
+    }
+
+    function playTypingBurst(x, y) {
+      const burst = document.createElement("span");
+      burst.className = "typing-burst";
+      burst.style.left = `${x}px`;
+      burst.style.top = `${y - 3}px`;
+      editorWrap.appendChild(burst);
+      frameMotion(720, (ease, raw) => {
+        const scale = raw < .24 ? lerp(.35, 1.35, raw / .24) : lerp(1.35, .65, (raw - .24) / .76);
+        burst.style.opacity = String(raw < .28 ? lerp(0, 1, raw / .28) : lerp(1, 0, (raw - .28) / .72));
+        burst.style.transform = `translateY(${lerp(8, -10, ease)}px) scale(${scale})`;
+      }, () => burst.remove());
+    }
+
+    function activeTab() {
+      return state.tabs.find(tab => tab.id === state.active) || state.tabs[0];
+    }
+
+    function activeCodeTab() {
+      const current = activeTab();
+      if (current && current.type !== "settings") return current;
+      return state.tabs.find(tab => tab.type !== "settings");
+    }
+
+    function isSettingsTab(tab) {
+      return tab && tab.type === "settings";
+    }
+
+    function syncWorkspaceView() {
+      const tab = activeTab();
+      const settingsActive = isSettingsTab(tab);
+      if (settingsActive) hideIntellisense();
+      editorWrap.classList.toggle("settings-active", settingsActive);
+      settingsView.classList.toggle("open", settingsActive);
+      settingsView.classList.remove("settings-opening");
+      if (settingsActive) {
+        void settingsView.offsetWidth;
+        settingsView.classList.add("settings-opening");
+        playSettingsMotion();
+      } else {
+        settingsView.classList.remove("settings-opening");
+      }
+    }
+
+    function renderTabs() {
+      const root = el("tabs");
+      root.innerHTML = "";
+      state.tabs.forEach(tab => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.tabId = String(tab.id);
+        button.className = [
+          "tab-btn",
+          tab.id === state.active ? "active" : "",
+          tab.opening ? "opening" : "",
+          closingTabs.has(tab.id) ? "closing" : ""
+        ].filter(Boolean).join(" ");
+        button.innerHTML = `<span class="tab-name">${escapeHtml(tab.name)}</span><span class="tab-close" title="Close">&times;</span>`;
+        button.addEventListener("click", event => {
+          if (event.target.classList.contains("tab-close")) {
+            event.stopPropagation();
+            closeTab(tab.id);
+          } else {
+            saveEditor();
+            state.active = tab.id;
+            if (!isSettingsTab(tab)) editor.value = tab.value;
+            renderTabs();
+            syncWorkspaceView();
+            updateStats();
+          }
+        });
+        root.appendChild(button);
+        if (tab.opening) {
+          playTabOpenAnimation(button, () => {
+            tab.opening = false;
+            button.classList.remove("opening");
+          });
+        }
+      });
+      el("tabs-stat").textContent = state.tabs.length;
+    }
+
+    function newTab(name = `script-${state.tabs.length + 1}.lua`, value = "print(\"New Incognito tab\")\n") {
+      hideIntellisense();
+      saveEditor();
+      const id = Date.now();
+      state.tabs.push({ id, name, value, type: "code", opening: true });
+      state.active = id;
+      editor.value = value;
+      renderTabs();
+      syncWorkspaceView();
+      updateStats();
+      toast("New tab created");
+    }
+
+    function closeTab(id) {
+      hideIntellisense();
+      const tab = state.tabs.find(item => item.id === id);
+      const codeCount = state.tabs.filter(item => item.type !== "settings").length;
+      if (!isSettingsTab(tab) && codeCount === 1) {
+        toast("At least one tab stays open", "warn");
+        return;
+      }
+      if (closingTabs.has(id)) return;
+      closingTabs.add(id);
+      const tabButton = document.querySelector(`[data-tab-id="${id}"]`);
+      if (tabButton) tabButton.classList.add("closing");
+      if (tabButton) {
+        playTabCloseAnimation(tabButton, () => finishCloseTab(id));
+      } else {
+        setTimeout(() => finishCloseTab(id), 190);
+      }
+    }
+
+    function finishCloseTab(id) {
+      closingTabs.delete(id);
+      const index = state.tabs.findIndex(tab => tab.id === id);
+      if (index === -1) return;
+      state.tabs.splice(index, 1);
+      if (state.active === id) {
+        const fallback = state.tabs[Math.max(0, index - 1)] || activeCodeTab();
+        state.active = fallback.id;
+        if (!isSettingsTab(fallback)) editor.value = fallback.value;
+      }
+      renderTabs();
+      syncWorkspaceView();
+      updateStats();
+    }
+
+    function saveEditor() {
+      const tab = activeTab();
+      if (tab && !isSettingsTab(tab)) tab.value = editor.value;
+    }
+
+    function updateGutter() {
+      const count = Math.max(1, editor.value.split("\n").length);
+      gutter.innerHTML = Array.from({ length: count }, (_, index) => `<span>${index + 1}</span>`).join("");
+      gutter.scrollTop = editor.scrollTop;
+      el("lines-stat").textContent = count;
+    }
+
+    function updateStats() {
+      saveEditor();
+      updateGutter();
+      const before = editor.value.slice(0, editor.selectionStart).split("\n");
+      const line = before.length;
+      const col = before[before.length - 1].length + 1;
+      el("line-pill").textContent = line;
+      el("col-pill").textContent = col;
+    }
+
+    function playTypingAnimation() {
+      const before = editor.value.slice(0, editor.selectionStart).split("\n");
+      const line = before.length;
+      const col = before[before.length - 1].length;
+      const x = Math.min(editorWrap.clientWidth - 18, Math.max(58, 68 + col * 7.5));
+      const y = Math.min(editorWrap.clientHeight - 18, Math.max(20, 14 + (line - 1) * 22 - editor.scrollTop));
+      editorWrap.style.setProperty("--type-x", `${x}px`);
+      editorWrap.style.setProperty("--type-y", `${y}px`);
+      editorWrap.classList.remove("typing");
+      void editorWrap.offsetWidth;
+      editorWrap.classList.add("typing");
+      editorWrap.animate([
+        { filter: "brightness(1.12)" },
+        { filter: "brightness(1)" }
+      ], { duration: 220, easing: "ease-out" });
+      playTypingBurst(x, y);
+      typingTimer += 1;
+      const token = typingTimer;
+      frameMotion(760, () => {}, () => {
+        if (token === typingTimer) editorWrap.classList.remove("typing");
+      });
+    }
+
+    function currentToken() {
+      const pos = editor.selectionStart;
+      const text = editor.value.slice(0, pos);
+      const match = text.match(/[A-Za-z_][A-Za-z0-9_:.]*$/);
+      return {
+        token: match ? match[0] : "",
+        start: match ? pos - match[0].length : pos,
+        end: pos
+      };
+    }
+
+    function caretPoint() {
+      const before = editor.value.slice(0, editor.selectionStart).split("\n");
+      const line = before.length;
+      const col = before[before.length - 1].length;
+      const x = Math.max(8, Math.min(editorWrap.clientWidth - 334, Math.max(58, 68 + col * 7.5)));
+      const y = Math.max(8, Math.min(editorWrap.clientHeight - 232, Math.max(34, 36 + (line - 1) * 22 - editor.scrollTop)));
+      return { x, y };
+    }
+
+    function showIntellisense(force = false) {
+      if (isSettingsTab(activeTab())) {
+        hideIntellisense();
+        return;
+      }
+      const tokenInfo = currentToken();
+      const query = tokenInfo.token.toLowerCase();
+      if (!force && query.length < 1) {
+        hideIntellisense();
+        return;
+      }
+      suggestToken = tokenInfo.token;
+      suggestStart = tokenInfo.start;
+      suggestItems = SUGGESTIONS
+        .filter(item => {
+          const label = item.label.toLowerCase();
+          return force || label.startsWith(query) || label.includes(query);
+        })
+        .slice(0, 9);
+      if (!suggestItems.length) {
+        hideIntellisense();
+        return;
+      }
+      suggestIndex = 0;
+      renderIntellisense();
+    }
+
+    function renderIntellisense() {
+      const point = caretPoint();
+      intellisense.style.left = `${point.x}px`;
+      intellisense.style.top = `${point.y}px`;
+      intellisense.innerHTML = suggestItems.map((item, index) => `
+        <div class="suggest-item${index === suggestIndex ? " active" : ""}" data-index="${index}" role="option" aria-selected="${index === suggestIndex}">
+          <span class="suggest-kind">${escapeHtml(item.kind)}</span>
+          <span class="suggest-label">${escapeHtml(item.label)}</span>
+          <span class="suggest-detail">${escapeHtml(item.detail)}</span>
+        </div>
+      `).join("");
+      intellisense.classList.add("open");
+    }
+
+    function hideIntellisense() {
+      intellisense.classList.remove("open");
+      intellisense.innerHTML = "";
+      suggestItems = [];
+      suggestIndex = 0;
+      suggestToken = "";
+    }
+
+    function acceptSuggestion(index = suggestIndex) {
+      const item = suggestItems[index];
+      if (!item) return false;
+      const start = suggestStart;
+      const end = editor.selectionStart;
+      editor.value = `${editor.value.slice(0, start)}${item.insert}${editor.value.slice(end)}`;
+      const caret = start + item.insert.length;
+      editor.setSelectionRange(caret, caret);
+      hideIntellisense();
+      updateStats();
+      playTypingAnimation();
+      editor.focus();
+      return true;
+    }
+
+    function moveSuggestion(direction) {
+      if (!suggestItems.length) return false;
+      suggestIndex = (suggestIndex + direction + suggestItems.length) % suggestItems.length;
+      renderIntellisense();
+      return true;
+    }
+
+    function setAttached(value, source = "manual") {
+      state.attached = value;
+      el("status-dot").classList.toggle("live", value);
+      el("attach-status").textContent = value ? `Attached - ${source}` : "Detached";
+      log(value ? `Attached (${source})` : "Detached", value ? "ok" : "warn");
+      toast(value ? "Attached" : "Detached");
+    }
+
+    function requestAttach(source = "manual") {
+      log("Attach requested", "info");
+      if (postBackend("attach", { source, profile: el("set-profile").value })) {
+        toast("Attach requested");
+        return;
+      }
+      setAttached(true, source === "auto" ? "auto preview" : "preview");
+    }
+
+    function requestDetach() {
+      log("Detach requested", "info");
+      if (postBackend("detach")) {
+        toast("Detach requested");
+        return;
+      }
+      setAttached(false);
+    }
+
+    function executeActive() {
+      saveEditor();
+      const tab = activeTab();
+      if (isSettingsTab(tab)) {
+        toast("Switch to a script tab first", "warn");
+        return;
+      }
+      if (!state.attached) {
+        log("Execute pressed while detached", "warn");
+        toast("Attach first, or enable Auto Attach", "warn");
+        return;
+      }
+      if (postBackend("execute", { script: tab.value, tabName: tab.name })) {
+        log(`Execute sent to backend for ${tab.name}`, "ok");
+        toast("Sent to backend");
+        return;
+      }
+      log(`Execute clicked for ${tab.name}`, "ok");
+      toast("Execution queued in UI preview");
+    }
+
+    function clearEditor() {
+      if (isSettingsTab(activeTab())) {
+        toast("Switch to a script tab first", "warn");
+        return;
+      }
+      editor.value = "";
+      saveEditor();
+      updateStats();
+      log("Editor cleared", "warn");
+    }
+
+    function openFile() {
+      hideIntellisense();
+      if (postBackend("open_file")) return;
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".lua,.txt,.luau,*/*";
+      input.addEventListener("change", () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => newTab(file.name, String(reader.result || ""));
+        reader.readAsText(file);
+      });
+      input.click();
+    }
+
+    function saveFile() {
+      saveEditor();
+      const tab = activeTab();
+      if (isSettingsTab(tab)) {
+        toast("Switch to a script tab first", "warn");
+        return;
+      }
+      if (postBackend("save_file", { name: tab.name, content: tab.value })) {
+        log(`Save sent to backend for ${tab.name}`, "ok");
+        toast("Save requested");
+        return;
+      }
+      const blob = new Blob([tab.value], { type: "text/plain;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = tab.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      log(`Saved ${tab.name}`, "ok");
+    }
+
+    function toggleConsole(force) {
+      const shouldOpen = typeof force === "boolean" ? force : !consoleBox.classList.contains("open");
+      consoleBox.classList.toggle("open", shouldOpen);
+    }
+
+    function openSettingsTab() {
+      hideIntellisense();
+      saveEditor();
+      let tab = state.tabs.find(item => item.type === "settings");
+      if (!tab) {
+        tab = { id: "settings", name: "Settings", type: "settings", opening: true };
+        state.tabs.push(tab);
+      }
+      state.active = tab.id;
+      renderTabs();
+      syncWorkspaceView();
+      updateStats();
+      toast("Settings tab opened");
+    }
+
+    function closeSettingsTab() {
+      const tab = state.tabs.find(item => item.type === "settings");
+      if (tab) closeTab(tab.id);
+    }
+
+    function handleAction(action) {
+      const actions = {
+        "focus-editor": () => editor.focus(),
+        "execute": executeActive,
+        "attach": () => requestAttach(),
+        "detach": requestDetach,
+        "clear": clearEditor,
+        "open": openFile,
+        "save": saveFile,
+        "new-tab": () => newTab(),
+        "console": () => toggleConsole(),
+        "settings": openSettingsTab
+      };
+      if (actions[action]) actions[action]();
+    }
+
+    function wireSettings() {
+      el("set-auto").addEventListener("change", event => {
+        state.autoAttach = event.target.checked;
+        el("auto-pill").textContent = state.autoAttach ? "On" : "Off";
+        log(`Auto Attach ${state.autoAttach ? "enabled" : "disabled"}`, "ok");
+        if (state.autoAttach) {
+          setTimeout(() => {
+            if (state.autoAttach && !state.attached) requestAttach("auto");
+            if (el("set-auto-exec").checked && state.attached) executeActive();
+          }, 700);
+        }
+        pushSettings();
+      });
+
+      el("set-rpc").addEventListener("change", event => {
+        state.rpc = event.target.checked;
+        el("rpc-pill").textContent = state.rpc ? "On" : "Off";
+        el("session-stat").textContent = state.rpc ? el("set-rpc-text").value || "Incognito" : "Incognito";
+        log(`Discord RPC visual state ${state.rpc ? "on" : "off"}`, "ok");
+        pushSettings();
+      });
+
+      el("set-rpc-text").addEventListener("input", event => {
+        if (state.rpc) el("session-stat").textContent = event.target.value || "Incognito";
+        pushSettings();
+      });
+
+      el("set-auto-exec").addEventListener("change", event => {
+        log(`Auto Execute ${event.target.checked ? "enabled" : "disabled"}`, event.target.checked ? "ok" : "warn");
+        pushSettings();
+      });
+
+      el("set-profile").addEventListener("change", event => {
+        log(`Attach profile set to ${event.target.value}`, "ok");
+        pushSettings();
+      });
+
+      el("set-local-font").addEventListener("change", event => {
+        document.body.classList.toggle("latin-font", !event.target.checked);
+        log(`Local font stack ${event.target.checked ? "enabled" : "disabled"}`, "ok");
+        pushSettings();
+      });
+
+      el("set-lines").addEventListener("change", event => {
+        document.body.classList.toggle("lines-off", !event.target.checked);
+        pushSettings();
+      });
+
+      el("set-wrap").addEventListener("change", event => {
+        document.body.classList.toggle("wrap-on", event.target.checked);
+        pushSettings();
+      });
+
+      el("set-font-size").addEventListener("input", event => {
+        document.documentElement.style.setProperty("--editor-size", `${event.target.value}px`);
+        el("font-size-label").textContent = event.target.value;
+        updateGutter();
+        pushSettings();
+      });
+
+      el("set-compact").addEventListener("change", event => {
+        document.querySelectorAll(".dock-btn").forEach(button => button.classList.toggle("compact", event.target.checked));
+        pushSettings();
+      });
+
+      el("set-incognito").addEventListener("change", event => {
+        el("session-stat").textContent = event.target.checked ? "Incognito" : "Visible";
+        pushSettings();
+      });
+
+      document.querySelectorAll("[data-theme]").forEach(button => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll("[data-theme]").forEach(item => item.classList.remove("active"));
+          button.classList.add("active");
+          applyTheme(button.dataset.theme);
+          pushSettings();
+        });
+      });
+    }
+
+    function applyTheme(theme) {
+      const root = document.documentElement;
+      const themes = {
+        graphite: ["#090a0c", "#121518", "#d4d8dd", "#8ea1b8"],
+        ash: ["#111214", "#1b1d20", "#e1e3e6", "#a9adb4"],
+        steel: ["#080b0f", "#111820", "#cad4df", "#7890aa"]
+      };
+      const [bg, panel, accent, accent2] = themes[theme] || themes.graphite;
+      root.style.setProperty("--bg", bg);
+      root.style.setProperty("--panel", panel);
+      root.style.setProperty("--accent", accent);
+      root.style.setProperty("--accent-2", accent2);
+      log(`Theme switched to ${theme}`, "ok");
+    }
+
+    function log(message, type = "") {
+      const line = document.createElement("div");
+      const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+      line.className = `log-line ${type}`;
+      line.innerHTML = `<span class="log-time">${now}</span><span>${escapeHtml(message)}</span>`;
+      consoleLog.appendChild(line);
+      consoleLog.scrollTop = consoleLog.scrollHeight;
+    }
+
+    function toast(message, type = "") {
+      const item = document.createElement("div");
+      item.className = `toast ${type}`;
+      item.textContent = message;
+      el("toast-stack").appendChild(item);
+      setTimeout(() => item.remove(), 2300);
+    }
+
+    function updateClock() {
+      el("clock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    document.addEventListener("click", event => {
+      const actionButton = event.target.closest("[data-action]");
+      if (actionButton) handleAction(actionButton.dataset.action);
+    });
+
+    editor.addEventListener("input", () => {
+      updateStats();
+      playTypingAnimation();
+      showIntellisense();
+    });
+    editor.addEventListener("keyup", event => {
+      updateStats();
+      if (!["ArrowUp", "ArrowDown", "Enter", "Tab", "Escape"].includes(event.key)) showIntellisense();
+    });
+    editor.addEventListener("click", () => {
+      updateStats();
+      showIntellisense();
+    });
+    editor.addEventListener("scroll", () => {
+      gutter.scrollTop = editor.scrollTop;
+      if (intellisense.classList.contains("open")) renderIntellisense();
+    });
+
+    editor.addEventListener("keydown", event => {
+      if ((event.ctrlKey || event.metaKey) && event.code === "Space") {
+        event.preventDefault();
+        showIntellisense(true);
+        return;
+      }
+      if (!intellisense.classList.contains("open")) return;
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveSuggestion(1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        moveSuggestion(-1);
+      } else if (event.key === "Enter" || event.key === "Tab") {
+        event.preventDefault();
+        acceptSuggestion();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        hideIntellisense();
+      }
+    });
+
+    intellisense.addEventListener("mousedown", event => {
+      const item = event.target.closest(".suggest-item");
+      if (!item) return;
+      event.preventDefault();
+      acceptSuggestion(Number(item.dataset.index));
+    });
+
+    el("new-tab").addEventListener("click", () => newTab());
+    el("close-settings").addEventListener("click", closeSettingsTab);
+    el("clear-console").addEventListener("click", () => {
+      consoleLog.innerHTML = "";
+      log("Console reset", "ok");
+    });
+
+    document.addEventListener("keydown", event => {
+      const ctrl = event.ctrlKey || event.metaKey;
+      if (event.key === "F5") {
+        event.preventDefault();
+        executeActive();
+      }
+      if (event.key === "F6") {
+        event.preventDefault();
+        requestAttach();
+      }
+      if (ctrl && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        saveFile();
+      }
+      if (ctrl && event.key.toLowerCase() === "o") {
+        event.preventDefault();
+        openFile();
+      }
+      if (ctrl && event.key === ",") {
+        event.preventDefault();
+        openSettingsTab();
+      }
+    });
+
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.addEventListener("message", backendMessage);
+    } else {
+      window.addEventListener("message", backendMessage);
+    }
+
+    editor.value = sample;
+    renderTabs();
+    wireSettings();
+    syncWorkspaceView();
+    updateStats();
+    updateClock();
+    setInterval(updateClock, 15000);
+    resizeMatrix();
+    renderMatrix();
+    window.addEventListener("resize", resizeMatrix);
+    log(hasBackend() ? "WebView2 bridge ready" : "Browser preview mode", hasBackend() ? "ok" : "warn");
+    postBackend("ui_ready", { settings: collectSettings() });
+
+    const topbar = document.querySelector('.topbar');
+    if (topbar) {
+        topbar.addEventListener('mousedown', (e) => {
+            if (e.target.closest('button')) return;
+            if (e.buttons === 1) { 
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.postMessage({ action: 'drag' });
+                }
+            }
+        });
+    }
+
+    const minimizeBtn = document.querySelector('#minimize-btn');
+    if (minimizeBtn) {
+        minimizeBtn.addEventListener('click', () => {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({ action: 'minimize' });
+            }
+        });
+    }
+
+    const closeBtn = document.querySelector('#close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({ action: 'exit' });
+            }
+        });
+    }
+  </script>
+</body>
+</html>
