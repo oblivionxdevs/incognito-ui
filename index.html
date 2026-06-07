@@ -1747,12 +1747,8 @@ print("Loaded " .. profile)
       matrixCtx.textBaseline = "top";
       matrixCtx.fillStyle = accent;
 
-<<<<<<< HEAD
       // Heavy full-screen grid removed for performance
       // Render in two passes: normal chars first, then glowing heads (avoids toggling shadowBlur per character)
-=======
-      // Heavy full-screen grid removed for performance
->>>>>>> 97d699cf4489f2daee108bcd4dc8a9fdcd48f487
       matrixCtx.shadowColor = accent;
       matrixCtx.shadowBlur = 0;
       matrixCtx.globalAlpha = 1;
@@ -2294,10 +2290,10 @@ print("Loaded " .. profile)
         "focus-editor": () => editor.focus(),
         "execute": executeActive,
         "attach": () => requestAttach(),
-        "detach": requestDetach(),
-        "clear": clearEditor(),
-        "open": openFile(),
-        "save": saveFile(),
+        "detach": requestDetach,
+        "clear": clearEditor,
+        "open": openFile,
+        "save": saveFile,
         "new-tab": () => newTab(),
         "console": () => toggleConsole(),
         "settings": openSettingsTab
